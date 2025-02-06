@@ -1,0 +1,150 @@
+{
+  "name": "remote-developmentt-ts",
+  "displayName": "remote-developmentt-ts",
+  "description": "Gestiona fácilmente conexiones FTP, SFTP y SSH, optimizando tu productividad y manteniendo tu entorno de desarrollo limpio y eficiente.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "keybindings": [
+      {
+        "command": "remote-development.save-and-upload",
+        "key": "alt+shift+q",
+        "mac": "alt+shift+q"
+      }
+    ],
+    "commands": [
+      {
+        "command": "remote-development.save-and-upload",
+        "title": "Guardar y Subir"
+      },
+      {
+        "command": "remote-development.open-config",
+        "title": "Config",
+        "icon": {
+          "light": "resources/light/settings-icon.svg",
+          "dark": "resources/dark/settings-icon.svg"
+        }
+      },
+      {
+        "command": "remote-development.servers-list",
+        "title": "Elige Conexion"
+      },
+      {
+        "command": "remote-development.open-resource",
+        "title": "Abrir Recurso"
+      },
+      {
+        "command": "remote-development.open-folder",
+        "title": "Abrir Folder Remoto"
+      },
+      {
+        "command": "remote-development.edit-file",
+        "title": "Editar archivo"
+      },
+      {
+        "command": "remote-development.delete-file",
+        "title": "Eliminar archivo"
+      },
+      {
+        "command": "remote-development.rename-file",
+        "title": "Renombrar archivo"
+      },
+      {
+        "command": "remote-development.change-permissions",
+        "title": "Cambiar permisos del archivo"
+      },
+      {
+        "command": "remote-development.copy-path",
+        "title": "Copiar ruta del archivo"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "remote-development.servers-list",
+          "when": "view == remote-servers",
+          "group": "navigation"
+        },
+        {
+          "command": "remote-development.open-config",
+          "when": "view == remote-servers",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "remote-development.edit-file",
+          "when": "view == remote-servers && viewItem == file",
+          "group": "1_modification"
+        },
+        {
+          "command": "remote-development.delete-file",
+          "when": "view == remote-servers && viewItem == file",
+          "group": "1_modification"
+        },
+        {
+          "command": "remote-development.rename-file",
+          "when": "view == remote-servers && viewItem == file",
+          "group": "1_modification"
+        },
+        {
+          "command": "remote-development.copy-path",
+          "when": "view == remote-servers && viewItem == file",
+          "group": "z_commands"
+        },
+        {
+          "command": "remote-development.change-permissions",
+          "when": "view == remote-servers && viewItem == file",
+          "group": "z_commands"
+        }       
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "remote-development-container",
+          "title": "Remote Development",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "remote-development-container": [
+        {
+          "id": "remote-servers",
+          "name": "Servers"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/ssh2-sftp-client": "^9.0.4",
+    "@types/vscode": "^1.96.0",
+    "@typescript-eslint/eslint-plugin": "^8.22.0",
+    "@typescript-eslint/parser": "^8.22.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.19.0",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "ssh2-sftp-client": "^11.0.0"
+  }
+}

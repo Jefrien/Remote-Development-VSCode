@@ -1,71 +1,73 @@
-# remote-developmentt-ts README
+# Remote Development for Visual Studio Code
 
-This is the README for your extension "remote-developmentt-ts". After writing up a brief description, we recommend including the following sections.
+Esta extensión permite la conexión remota a un servidor FTP, SFTP o SSH, optimizando tu productividad y manteniendo tu entorno de desarrollo limpio y eficiente.
 
-## Features
+## Características
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+* Conectarse a un servidor FTP, SFTP o SSH.
+* Subir y descargar archivos.
+* Gestionar carpetas remotas.
+* Copiar y mover archivos y carpetas.
+* Renombrar archivos y carpetas.
+* Eliminar archivos y carpetas.
+* Copiar la ruta de acceso de un archivo o carpeta.
+* Visualizar el contenido de un archivo.
+* Visualizar el contenido de una carpeta.
 
-For example if there is an image subfolder under your extension project workspace:
+> Nota: No es necesario la descarga de todo el codigo fuente, cuando se selecciona un archivo este si se descarga de forma temporal en el dispositivo, por lo cual funciona con otras extensiones como que fuera local.
 
-\!\[feature X\]\(images/feature-x.png\)
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+## Configuración y Seguridad
 
-## Requirements
+La configuración de los servidores se encuentra en un archivo plano en formato JSON, es tu responsabilidad mantenerlo seguro.
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+## Problemas Conocidos
 
-## Extension Settings
+No he encontrado ningun problema conocido, pero si tienes alguna sugerencia, por favor, no dudes en [crear un issue](https://github.com/username/remote-development-vscode/issues/new).
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+## Notas de la versión
 
-For example:
+Lanzamiento inicial
+- Manejar Archivos (Crear, Renombrar, Eliminar, Subir, Editar)
+- Manejar Carpetas (Crear, Renombrar, Eliminar)
+- Subir Archivos
 
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
 
 ---
 
-## Following extension guidelines
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+## Extras
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+* Para guardar y subir el archivo que tienes abierto usa (`Alt+Shift+Q`) en cualquier sistema operativo.
+* La estructua de un servidor es la siguiente:
+    * `name`: Nombre del servidor
+    * `host`: Host del servidor
+    * `port`: Puerto del servidor
+    * `username`: Usuario del servidor
+    * `password`: Contrasena del servidor
+    * `path`: Ruta del servidor
 
-## Working with Markdown
+#### Ejemplo:
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+```json
+{
+    "servers": [
+        {
+            "name": "Server SFTP/SSH Example 1",
+            "host": "127.0.0.1",
+            "username": "user_sftp",
+            "password": "password_sftp",
+            "port": 22,
+            "path": "/"
+        },
+        {
+            "name": "Server FTP Example 2",
+            "host": "localhost",
+            "username": "user_ftp",
+            "password": "password_ftp",
+            "port": 21,
+            "path": "/public_html/"
+        }
+    ]
+}
+```

@@ -104,6 +104,34 @@ export default class FtpClientController {
         }
     }
 
+    public async reloadPath(path: string) {
+        try {
+            StatusBarController.getInstance().updateStatusBarText('SFTP: Recargando directorio', true);
+            await this.reconnector();
+
+            const files = await this.client.list(path);
+        
+
+            this.updateStatusConnection();
+        } catch (error: any) {
+            vscode.window.showErrorMessage('Error al recargar el directorio: ' + error.message);
+            this.reconnector();
+        }
+    }
+
+    // create new file
+    public async createFile(path: string, data: string | Buffer = Buffer.from('')) {
+        try {
+            StatusBarController.getInstance().updateStatusBarText('SFTP: Creando archivo', true);
+            await this.reconnector();
+            await this.client.put(data, path);
+            this.updateStatusConnection();
+        } catch (error: any) {
+            vscode.window.showErrorMessage('Error al crear el archivo: ' + error.message);
+            this.reconnector();
+        }
+    }
+
     // upload file
     public async uploadFile() {
         try {
@@ -113,7 +141,7 @@ export default class FtpClientController {
                 await editor.document.save();
 
                 const localPath = editor.document.fileName;                
-                let remotePath = localPath.replace(path.join('tmp', 'remote-development-vscode',this.currentConfig.host), '');
+                let remotePath = localPath.replace(path.join('tmp', 'rd-vscode',this.currentConfig.host), '');
                 remotePath = remotePath.replace('//', '/');
 
                
@@ -169,6 +197,84 @@ export default class FtpClientController {
             vscode.window.showErrorMessage('Error al descargar el archivo: ' + error.message);
             this.updateStatusConnection();
             throw error;
+        }
+    }
+
+    // delete file
+    public async deleteFile(remotePath: string) {
+        StatusBarController.getInstance().updateStatusBarText('SFTP: Eliminando archivo', true);
+        try {
+            await this.reconnector();
+            await this.client.delete(remotePath);
+        } catch (error: any) {
+            vscode.window.showErrorMessage('Error al eliminar el archivo: ' + error.message);            
+        } finally {
+            this.updateStatusConnection();
+        }
+    }   
+
+    // renameFile
+    public async renameFile(remotePath: string, newName: string) {
+        StatusBarController.getInstance().updateStatusBarText('SFTP: Renombrando archivo', true);
+        try {
+            await this.reconnector();
+            await this.client.rename(remotePath, newName);
+        } catch (error: any) {
+            vscode.window.showErrorMessage('Error al renombrar el archivo: ' + error.message);            
+        } finally {
+            this.updateStatusConnection();
+        }
+    }
+
+    // permissions 
+    public async changePermissions(remotePath: string, permissions: number) {
+        StatusBarController.getInstance().updateStatusBarText('SFTP: Cambiando permisos', true);
+        try {
+            await this.reconnector();
+            await this.client.chmod(remotePath, permissions);
+        } catch (error: any) {
+            vscode.window.showErrorMessage('Error al cambiar los permisos: ' + error.message);            
+        } finally {
+            this.updateStatusConnection();
+        }
+    }
+
+    // create folder
+    public async createFolder(path: string) {
+        StatusBarController.getInstance().updateStatusBarText('SFTP: Creando carpeta', true);
+        try {
+            await this.reconnector();
+            await this.client.mkdir(path);
+        } catch (error: any) {
+            vscode.window.showErrorMessage('Error al crear la carpeta: ' + error.message);            
+        } finally {
+            this.updateStatusConnection();
+        }
+    }
+
+    // rename folder
+    public async renameFolder(remotePath: string, newName: string) {
+        StatusBarController.getInstance().updateStatusBarText('SFTP: Renombrando carpeta', true);
+        try {
+            await this.reconnector();
+            await this.client.rename(remotePath, newName);
+        } catch (error: any) {
+            vscode.window.showErrorMessage('Error al renombrar la carpeta: ' + error.message);            
+        } finally {
+            this.updateStatusConnection();
+        }
+    }
+
+    // delete folder
+    public async deleteFolder(remotePath: string) {
+        StatusBarController.getInstance().updateStatusBarText('SFTP: Eliminando carpeta', true);
+        try {
+            await this.reconnector();
+            await this.client.rmdir(remotePath, true);
+        } catch (error: any) {
+            vscode.window.showErrorMessage('Error al eliminar la carpeta: ' + error.message);            
+        } finally {
+            this.updateStatusConnection();
         }
     }
 

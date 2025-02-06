@@ -2,7 +2,9 @@
   "name": "remote-developmentt-ts",
   "displayName": "remote-developmentt-ts",
   "description": "Gestiona fácilmente conexiones FTP, SFTP y SSH, optimizando tu productividad y manteniendo tu entorno de desarrollo limpio y eficiente.",
-  "version": "0.0.1",
+  "version": "1.0.0",
+  "repository": "https://github.com/Jefrien/Remote-Development-VSCode",
+  "publisher": "jdevs",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -63,18 +65,18 @@
       {
         "command": "remote-development.copy-path",
         "title": "Copiar ruta del archivo"
-      },      
+      },
       {
         "command": "remote-development.add-file",
-        "title": "Crear archivo en este directorio"
+        "title": "Nuevo archivo"
       },
       {
         "command": "remote-development.add-folder",
-        "title": "Crear carpeta en este directorio"
+        "title": "Nueva carpeta"
       },
       {
         "command": "remote-development.upload-file",
-        "title": "Subir archivo en este directorio"
+        "title": "Subir archivo"
       },
       {
         "command": "remote-development.rename-folder",
@@ -82,11 +84,11 @@
       },
       {
         "command": "remote-development.delete-folder",
-        "title": "Eliminar carpeta"
+        "title": "Eliminar Carpeta"
       },
       {
         "command": "remote-development.copy-folder-path",
-        "title": "Copiar path remoto"
+        "title": "Copiar ruta de acceso"
       }
     ],
     "menus": {
@@ -131,28 +133,28 @@
         {
           "command": "remote-development.add-file",
           "when": "view == remote-servers && viewItem == directory",
-          "group": "1_modification"
+          "group": "navigation@1"
         },
         {
           "command": "remote-development.add-folder",
           "when": "view == remote-servers && viewItem == directory",
-          "group": "1_modification"
-        },        
+          "group": "navigation@2"
+        },
         {
           "command": "remote-development.rename-folder",
           "when": "view == remote-servers && viewItem == directory",
-          "group": "1_modification"
+          "group": "navigation@3"
         },
         {
           "command": "remote-development.delete-folder",
           "when": "view == remote-servers && viewItem == directory",
-          "group": "1_modification"
+          "group": "navigation@4"
         },
         {
           "command": "remote-development.upload-file",
           "when": "view == remote-servers && viewItem == directory",
           "group": "z_commands"
-        },  
+        },
         {
           "command": "remote-development.copy-folder-path",
           "when": "view == remote-servers && viewItem == directory",
@@ -195,6 +197,7 @@
     "@typescript-eslint/parser": "^8.22.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.2.2",
     "eslint": "^9.19.0",
     "typescript": "^5.7.3"
   },

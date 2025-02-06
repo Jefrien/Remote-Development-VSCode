@@ -86,6 +86,10 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
         return ExplorerController.instance;
     }
 
+    public static getInstanceAlt(): ExplorerController {
+        return ExplorerController.instance;
+    }
+
     public async onOpenResource(item: FTPItem) {
         try {
             vscode.window.withProgress({
@@ -95,9 +99,9 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
             }, async (progress, token) => {
                 const sftp = FtpClientController.getInstance();
                 const middle_path = item.entry.parent?.path || sftp.basePath;
-                const file_path = path.join('tmp', 'remote-development-vscode', sftp.config.host, middle_path, item.entry.name);
+                const file_path = path.join('tmp', 'rd-vscode', sftp.config.host, middle_path, item.entry.name);
 
-                await sftp.downloadFile(item.entry.path, file_path)
+                await sftp.downloadFile(item.entry.path, file_path);
                 const save_path = vscode.Uri.file(file_path);
                 let document = await vscode.workspace.openTextDocument(save_path);
                 vscode.window.showTextDocument(document);
@@ -112,6 +116,7 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
         this.data = this.sortEntries(data);
         this._onDidChangeTreeData?.fire(data);
     }
+    
 
     initServer() {
         const config = FtpClientController.getInstance().config;            
@@ -134,6 +139,10 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
             description: config.host
         } as FTPNode]
         this._onDidChangeTreeData?.fire(undefined);
+    }
+
+    addNewFile(item: FTPItem, filename: string) {
+
     }
 
     sortEntries(items: FTPNode[]) {

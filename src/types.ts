@@ -20,6 +20,7 @@ export interface FTPNode {
     path:       string;
     parent:     FTPNode;
     isExpanded?: boolean;
+    description?: string;
 }
 
 export interface Rights {

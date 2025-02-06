@@ -66,19 +66,9 @@ export default class ServersController {
             });
 
             await FtpClientController.getInstance().connect(server);
-            let items: FTPNode[] = await FtpClientController.getInstance().listDirectory(server.path || '/') as FTPNode[];
-     
-
-            items = items.map(item => {
-                const base = server.path ? server.path : '';
-                return {
-                    ...item,
-                    path: path.join(base, item.name)
-                };
-            });
-
+           
             FtpClientController.getInstance().setPath(server.path || '/');
-            ExplorerController.getInstance(this.context).setData(items);
+            ExplorerController.getInstance(this.context).initServer();
             
             return true;
         });

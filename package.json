@@ -63,6 +63,30 @@
       {
         "command": "remote-development.copy-path",
         "title": "Copiar ruta del archivo"
+      },      
+      {
+        "command": "remote-development.add-file",
+        "title": "Crear archivo en este directorio"
+      },
+      {
+        "command": "remote-development.add-folder",
+        "title": "Crear carpeta en este directorio"
+      },
+      {
+        "command": "remote-development.upload-file",
+        "title": "Subir archivo en este directorio"
+      },
+      {
+        "command": "remote-development.rename-folder",
+        "title": "Renombrar carpeta"
+      },
+      {
+        "command": "remote-development.delete-folder",
+        "title": "Eliminar carpeta"
+      },
+      {
+        "command": "remote-development.copy-folder-path",
+        "title": "Copiar path remoto"
       }
     ],
     "menus": {
@@ -103,7 +127,37 @@
           "command": "remote-development.change-permissions",
           "when": "view == remote-servers && viewItem == file",
           "group": "z_commands"
-        }       
+        },
+        {
+          "command": "remote-development.add-file",
+          "when": "view == remote-servers && viewItem == directory",
+          "group": "1_modification"
+        },
+        {
+          "command": "remote-development.add-folder",
+          "when": "view == remote-servers && viewItem == directory",
+          "group": "1_modification"
+        },        
+        {
+          "command": "remote-development.rename-folder",
+          "when": "view == remote-servers && viewItem == directory",
+          "group": "1_modification"
+        },
+        {
+          "command": "remote-development.delete-folder",
+          "when": "view == remote-servers && viewItem == directory",
+          "group": "1_modification"
+        },
+        {
+          "command": "remote-development.upload-file",
+          "when": "view == remote-servers && viewItem == directory",
+          "group": "z_commands"
+        },  
+        {
+          "command": "remote-development.copy-folder-path",
+          "when": "view == remote-servers && viewItem == directory",
+          "group": "z_commands"
+        }
       ]
     },
     "viewsContainers": {

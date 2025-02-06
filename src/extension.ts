@@ -4,6 +4,7 @@ import ServersController from './controllers/servers.controller';
 import FtpClientController from './controllers/ftp.controller';
 import ExplorerController from './controllers/explorer.controller';
 import FilesController from './controllers/files.controller';
+import DirectoriesController from './controllers/directories.controller';
 
 
 export function activate(context: vscode.ExtensionContext) {
@@ -20,6 +21,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// init files controller
 	FilesController.getInstance(context);
+
+	// init directory controller
+	DirectoriesController.getInstance(context);
 
 
 	// globals

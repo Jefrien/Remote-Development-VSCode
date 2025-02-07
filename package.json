@@ -1,12 +1,13 @@
 {
-  "name": "remote-developmentt-ts",
-  "displayName": "remote-developmentt-ts",
+  "name": "remote-development-ts",
+  "displayName": "Remote Development - FTP, SFTP, SSH Manager",
   "description": "Gestiona fácilmente conexiones FTP, SFTP y SSH, optimizando tu productividad y manteniendo tu entorno de desarrollo limpio y eficiente.",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "repository": "https://github.com/Jefrien/Remote-Development-VSCode",
   "publisher": "jdevs",
+  "icon": "resources/icon.png",
   "engines": {
-    "vscode": "^1.96.0"
+    "vscode": "^1.94.0"
   },
   "categories": [
     "Other"
@@ -192,7 +193,7 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@types/ssh2-sftp-client": "^9.0.4",
-    "@types/vscode": "^1.96.0",
+    "@types/vscode": "^1.94.0",
     "@typescript-eslint/eslint-plugin": "^8.22.0",
     "@typescript-eslint/parser": "^8.22.0",
     "@vscode/test-cli": "^0.0.10",

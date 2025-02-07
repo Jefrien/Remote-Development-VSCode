@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import path from 'path';
 import fs from 'fs/promises';
-import { FTPNode, ServerItem } from '../types';
+import { ServerItem } from '../types';
 import FtpClientController from './ftp.controller';
 import ExplorerController from './explorer.controller';
 
@@ -46,7 +46,7 @@ export default class ServersController {
 
     public async loadServers() {
         try {
-            const configPath = path.join(this.context.extensionPath, 'config', 'main.json');
+            const configPath = path.posix.join(this.context.extensionPath, 'config', 'main.json');
             const configData = JSON.parse(await fs.readFile(configPath, 'utf8'));
             this.config = configData;
         } catch (error) {

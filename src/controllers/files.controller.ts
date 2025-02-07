@@ -73,7 +73,7 @@ export default class FilesController {
             }
 
             let basepath = path.dirname(item.path);
-            basepath = path.join(basepath, newName);
+            basepath = path.posix.join(basepath, newName);
 
             await FtpClientController.getInstance().renameFile(item.path, basepath);
             ExplorerController.getInstanceAlt().refresh();

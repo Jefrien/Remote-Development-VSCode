@@ -38,7 +38,7 @@ export default class DirectoriesController {
             });
 
             if (filename) {
-                const filepath = path.join(item.path, filename);
+                const filepath = path.posix.join(item.path, filename);
                 await FtpClientController.getInstance().createFile(filepath);
                 ExplorerController.getInstanceAlt().refresh();
                 vscode.window.showInformationMessage('Creado archivo: ' + filename);
@@ -57,7 +57,7 @@ export default class DirectoriesController {
                 value: ''
             });
             if (foldername) {
-                const folderpath = path.join(item.path, foldername);
+                const folderpath = path.posix.join(item.path, foldername);
                 await FtpClientController.getInstance().createFolder(folderpath);
                 ExplorerController.getInstanceAlt().refresh();
                 vscode.window.showInformationMessage('Creado carpeta: ' + foldername);
@@ -76,7 +76,7 @@ export default class DirectoriesController {
                 value: item.entry.name
             });
             if (foldername) {
-                const folderpath = path.join(path.dirname(item.path), foldername);
+                const folderpath = path.posix.join(path.dirname(item.path), foldername);
                 await FtpClientController.getInstance().renameFolder(item.path, folderpath);
                 ExplorerController.getInstanceAlt().refresh();
                 vscode.window.showInformationMessage('Carpeta renombrada: ' + foldername);
@@ -138,7 +138,7 @@ export default class DirectoriesController {
                     vscode.window.showInformationMessage('Subida cancelada');
                 });
                 let filename = path.basename(localPath);
-                filename = path.join(item.path, filename);
+                filename = path.posix.join(item.path, filename);
 
                 await FtpClientController.getInstance().createFile(filename, localPath);
                 ExplorerController.getInstanceAlt().refresh();

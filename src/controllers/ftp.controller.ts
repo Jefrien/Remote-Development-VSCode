@@ -28,10 +28,12 @@ export default class FtpClientController {
 
     private registerEvents() {
         this.client.on('error', (err) => {
+            this.status = 'disconnected';
             vscode.window.showErrorMessage('Error de conexión SFTP: ' + err.message);
         });
 
         this.client.on('end', () => {
+            vscode.window.showInformationMessage('Desconectado de SFTP');
             this.status = 'disconnected';
         });
     }

@@ -99,7 +99,7 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
             }, async (progress, token) => {
                 const sftp = FtpClientController.getInstance();
                 const middle_path = item.entry.parent?.path || sftp.basePath;
-                const file_path = path.join('tmp', 'rd-vscode', sftp.config.host, middle_path, item.entry.name);
+                const file_path = path.posix.join('tmp', 'rd-vscode', sftp.config.host, middle_path, item.entry.name);
 
                 await sftp.downloadFile(item.entry.path, file_path);
                 const save_path = vscode.Uri.file(file_path);
@@ -181,7 +181,7 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
             results = results.map(_item => {
                 return {
                     ..._item,
-                    path: path.join(element.path, _item.name),
+                    path: path.posix.join(element.path, _item.name),
                     type: _item.type === 'l' ? 'd' : _item.type 
                 };
             });

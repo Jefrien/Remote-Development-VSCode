@@ -23,7 +23,7 @@ La configuración de los servidores se encuentra en un archivo plano en formato 
 
 ## Problemas Conocidos
 
-No he encontrado ningun problema conocido, pero si tienes alguna sugerencia, por favor, no dudes en [crear un issue](https://github.com/username/remote-development-vscode/issues/new).
+No he encontrado ningun problema conocido, pero si tienes alguna sugerencia, por favor, no dudes en [crear un issue](https://github.com/Jefrien/Remote-Development-VSCode/issues/new).
 
 ## Notas de la versión
 
@@ -31,6 +31,7 @@ Lanzamiento inicial
 - Manejar Archivos (Crear, Renombrar, Eliminar, Subir, Editar)
 - Manejar Carpetas (Crear, Renombrar, Eliminar)
 - Subir Archivos
+- Arreglo en funcion para crear los paths remotos en Windows
 
 
 ---

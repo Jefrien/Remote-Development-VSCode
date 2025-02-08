@@ -52,9 +52,11 @@ export default class FilesController {
                 return;
             }
 
+            const filename = path.basename(item.entry.name);
+
             await FtpClientController.getInstance().deleteFile(item.path);
-            ExplorerController.getInstanceAlt().refresh();
-            vscode.window.showInformationMessage('Archivo eliminado: ' + item.entry.name);
+            ExplorerController.getInstanceAlt().refresh();            
+            vscode.window.showInformationMessage('Archivo eliminado: ' + filename);
         } catch (err: any) {
             vscode.window.showErrorMessage('Error deleting file: ' + err.message);
         }
@@ -73,7 +75,7 @@ export default class FilesController {
             }
 
             let basepath = path.dirname(item.path);
-            basepath = path.posix.join(basepath, newName);
+            basepath = path.join(basepath, newName);
 
             await FtpClientController.getInstance().renameFile(item.path, basepath);
             ExplorerController.getInstanceAlt().refresh();

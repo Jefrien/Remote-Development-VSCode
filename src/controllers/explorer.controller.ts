@@ -4,13 +4,14 @@ import * as vscode from 'vscode';
 import { FTPNode } from '../types';
 import FtpClientController from './ftp.controller';
 import path from 'path';
-import fs from 'fs/promises';
+import { getTempDirectory, pathServerFormat } from '../utils';
 
 export class FTPItem extends vscode.TreeItem {
 
     entry: FTPNode;
     path: string;
     childrens: FTPItem[] = [];
+    remotePath: string;
 
     constructor(entry: FTPNode, collapsibleState: vscode.TreeItemCollapsibleState) {
         super(entry.name, collapsibleState);
@@ -18,6 +19,8 @@ export class FTPItem extends vscode.TreeItem {
         this.childrens = [];
         this.entry = entry;
         this.path = entry.path;
+
+        this.remotePath = entry.remotePath
 
         // setup icon
         if (entry.type === 'd') {
@@ -98,8 +101,17 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
                 cancellable: true
             }, async (progress, token) => {
                 const sftp = FtpClientController.getInstance();
-                const middle_path = item.entry.parent?.path || sftp.basePath;
-                const file_path = path.posix.join('tmp', 'rd-vscode', sftp.config.host, middle_path, item.entry.name);
+                const middle_path = item.entry.parent?.path || sftp.basePath;                
+                
+                // converts in base64
+                let remotePath = Buffer.from(pathServerFormat(middle_path)).toString('base64')
+                remotePath = path.posix.join(remotePath, item.entry.name);
+
+                const tmpPath = getTempDirectory();
+                const file_path = path.join(tmpPath, 'rd-vscode', sftp.config.host, remotePath);
+                const filename = path.basename(item.entry.name);
+
+                vscode.window.showInformationMessage(`Abriendo archivo: ${filename}`);
 
                 await sftp.downloadFile(item.entry.path, file_path);
                 const save_path = vscode.Uri.file(file_path);
@@ -181,8 +193,9 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
             results = results.map(_item => {
                 return {
                     ..._item,
-                    path: path.posix.join(element.path, _item.name),
-                    type: _item.type === 'l' ? 'd' : _item.type 
+                    path: path.join(element.path, _item.name).normalize(),
+                    type: _item.type === 'l' ? 'd' : _item.type,
+                    remotePath: _item.parent?.remotePath ? _item.parent.remotePath + '/' + _item.name : _item.remotePath
                 };
             });
 

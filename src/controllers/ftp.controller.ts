@@ -4,6 +4,7 @@ import { ServerItem } from '../types';
 import StatusBarController from './status-bar.controller';
 import path from 'path';
 import fs from 'fs';
+import { pathServerFormat } from '../utils';
 
 export default class FtpClientController {
 
@@ -30,11 +31,13 @@ export default class FtpClientController {
         this.client.on('error', (err) => {
             this.status = 'disconnected';
             vscode.window.showErrorMessage('Error de conexión SFTP: ' + err.message);
+            this.updateStatusConnection();
         });
 
         this.client.on('end', () => {
             vscode.window.showInformationMessage('Desconectado de SFTP');
             this.status = 'disconnected';
+            this.updateStatusConnection();
         });
     }
 
@@ -68,7 +71,9 @@ export default class FtpClientController {
                 host,
                 port,
                 username,
-                password
+                password,
+                timeout: 10000,
+                retries: 2,
             });
             this.status = 'connected';
         } catch (error: any) {
@@ -92,12 +97,12 @@ export default class FtpClientController {
     }
 
     // list dir
-    public async listDirectory(path: string = '/') {
+    public async listDirectory(_path: string = '/') {
         try {
             StatusBarController.getInstance().updateStatusBarText('SFTP: Listando directorio', true);
-            await this.reconnector();
+            await this.reconnector();            
 
-            const files = await this.client.list(path);
+            const files = await this.client.list(pathServerFormat(_path));
             this.updateStatusConnection();
             return files;
         } catch (error: any) {
@@ -106,12 +111,12 @@ export default class FtpClientController {
         }
     }
 
-    public async reloadPath(path: string) {
+    public async reloadPath(_path: string) {
         try {
             StatusBarController.getInstance().updateStatusBarText('SFTP: Recargando directorio', true);
             await this.reconnector();
 
-            const files = await this.client.list(path);
+            const files = await this.client.list(pathServerFormat(_path));
         
 
             this.updateStatusConnection();
@@ -122,11 +127,17 @@ export default class FtpClientController {
     }
 
     // create new file
-    public async createFile(path: string, data: string | Buffer = Buffer.from('')) {
+    public async createFile(_path: string, data: string | Buffer = Buffer.from('')) {
         try {
             StatusBarController.getInstance().updateStatusBarText('SFTP: Creando archivo', true);
             await this.reconnector();
-            await this.client.put(data, path);
+            await this.client.put(data, pathServerFormat(_path), {
+                writeStreamOptions: {
+                    flags: 'w',
+                    encoding: 'utf8',
+                    mode: 0o666,
+                }
+            });
             this.updateStatusConnection();
         } catch (error: any) {
             vscode.window.showErrorMessage('Error al crear el archivo: ' + error.message);
@@ -142,11 +153,15 @@ export default class FtpClientController {
                 StatusBarController.getInstance().updateStatusBarText('SFTP: Subiendo archivo', true);
                 await editor.document.save();
 
-                const localPath = editor.document.fileName;                
-                let remotePath = localPath.replace(path.join('tmp', 'rd-vscode',this.currentConfig.host), '');
-                remotePath = remotePath.replace('//', '/');
+                let localPath = editor.document.fileName;                        
 
-               
+
+                // get only part of string after rd-vscode/ to end
+                let remotePath = pathServerFormat(localPath).split('rd-vscode/')[1];                
+                remotePath = remotePath.split('/')[1]
+
+                // decode base64
+                remotePath = Buffer.from(remotePath, 'base64').toString('utf8') + '/' + path.basename(localPath);                                                 
 
                 const filename = path.basename(localPath);
 
@@ -161,7 +176,13 @@ export default class FtpClientController {
 
                     await this.reconnector();
 
-                    await this.client.put(localPath, remotePath);
+                    await this.client.put(localPath, remotePath, {
+                        writeStreamOptions: {
+                            flags: 'w',
+                            encoding: 'utf8',
+                            mode: 0o666,
+                        }
+                    });
                     StatusBarController.getInstance().updateStatusBarText('SFTP: Archivo subido con exito', false);
 
                     setTimeout(() => {
@@ -194,7 +215,7 @@ export default class FtpClientController {
             }
 
             let dst = fs.createWriteStream(localPath);
-            await this.client.get(remotePath, dst);
+            await this.client.get(pathServerFormat(remotePath), dst);
         } catch (error: any) {
             vscode.window.showErrorMessage('Error al descargar el archivo: ' + error.message);
             this.updateStatusConnection();
@@ -207,7 +228,7 @@ export default class FtpClientController {
         StatusBarController.getInstance().updateStatusBarText('SFTP: Eliminando archivo', true);
         try {
             await this.reconnector();
-            await this.client.delete(remotePath);
+            await this.client.delete(pathServerFormat(remotePath));
         } catch (error: any) {
             vscode.window.showErrorMessage('Error al eliminar el archivo: ' + error.message);            
         } finally {
@@ -220,7 +241,7 @@ export default class FtpClientController {
         StatusBarController.getInstance().updateStatusBarText('SFTP: Renombrando archivo', true);
         try {
             await this.reconnector();
-            await this.client.rename(remotePath, newName);
+            await this.client.rename(pathServerFormat(remotePath), newName);
         } catch (error: any) {
             vscode.window.showErrorMessage('Error al renombrar el archivo: ' + error.message);            
         } finally {
@@ -233,7 +254,7 @@ export default class FtpClientController {
         StatusBarController.getInstance().updateStatusBarText('SFTP: Cambiando permisos', true);
         try {
             await this.reconnector();
-            await this.client.chmod(remotePath, permissions);
+            await this.client.chmod(pathServerFormat(remotePath), permissions);
         } catch (error: any) {
             vscode.window.showErrorMessage('Error al cambiar los permisos: ' + error.message);            
         } finally {
@@ -242,11 +263,11 @@ export default class FtpClientController {
     }
 
     // create folder
-    public async createFolder(path: string) {
+    public async createFolder(_path: string) {
         StatusBarController.getInstance().updateStatusBarText('SFTP: Creando carpeta', true);
         try {
             await this.reconnector();
-            await this.client.mkdir(path);
+            await this.client.mkdir(pathServerFormat(_path));
         } catch (error: any) {
             vscode.window.showErrorMessage('Error al crear la carpeta: ' + error.message);            
         } finally {
@@ -259,7 +280,7 @@ export default class FtpClientController {
         StatusBarController.getInstance().updateStatusBarText('SFTP: Renombrando carpeta', true);
         try {
             await this.reconnector();
-            await this.client.rename(remotePath, newName);
+            await this.client.rename(pathServerFormat(remotePath), newName);
         } catch (error: any) {
             vscode.window.showErrorMessage('Error al renombrar la carpeta: ' + error.message);            
         } finally {
@@ -272,7 +293,7 @@ export default class FtpClientController {
         StatusBarController.getInstance().updateStatusBarText('SFTP: Eliminando carpeta', true);
         try {
             await this.reconnector();
-            await this.client.rmdir(remotePath, true);
+            await this.client.rmdir(pathServerFormat(remotePath), true);
         } catch (error: any) {
             vscode.window.showErrorMessage('Error al eliminar la carpeta: ' + error.message);            
         } finally {

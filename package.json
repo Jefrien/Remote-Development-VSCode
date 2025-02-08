@@ -2,7 +2,7 @@
   "name": "remote-development-ts",
   "displayName": "Remote Development - FTP, SFTP, SSH Manager",
   "description": "Gestiona fácilmente conexiones FTP, SFTP y SSH, optimizando tu productividad y manteniendo tu entorno de desarrollo limpio y eficiente.",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "repository": "https://github.com/Jefrien/Remote-Development-VSCode",
   "publisher": "jdevs",
   "icon": "resources/icon.png",

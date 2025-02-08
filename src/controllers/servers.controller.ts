@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import { ServerItem } from '../types';
 import FtpClientController from './ftp.controller';
 import ExplorerController from './explorer.controller';
+import ConfigManager from './config-manager.controller';
 
 
 
@@ -18,7 +19,7 @@ export default class ServersController {
         };
 
     private constructor(_context: vscode.ExtensionContext) {
-        this.context = _context;
+        this.context = _context;        
 
         const command = vscode.commands.registerCommand('remote-development.servers-list', async () => {
             vscode.window.withProgress({
@@ -45,10 +46,8 @@ export default class ServersController {
     }
 
     public async loadServers() {
-        try {
-            const configPath = path.posix.join(this.context.extensionPath, 'config', 'main.json');
-            const configData = JSON.parse(await fs.readFile(configPath, 'utf8'));
-            this.config = configData;
+        try {            
+            this.config = await ConfigManager.getInstance(this.context).loadConfig();
         } catch (error) {
             vscode.window.showErrorMessage('Error al cargar la configuración de servidores. Revisa la consola para más detalles.');
         }

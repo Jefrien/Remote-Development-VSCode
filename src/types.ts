@@ -18,6 +18,7 @@ export interface FTPNode {
     group:      number;
     longname:   string;
     path:       string;
+    remotePath: string;
     parent:     FTPNode;
     isExpanded?: boolean;
     description?: string;

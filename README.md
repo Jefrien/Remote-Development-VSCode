@@ -16,6 +16,13 @@ Esta extensión permite la conexión remota a un servidor FTP, SFTP o SSH, optim
 
 > Nota: No es necesario la descarga de todo el codigo fuente, cuando se selecciona un archivo este si se descarga de forma temporal en el dispositivo, por lo cual funciona con otras extensiones como que fuera local.
 
+## Apoyame con una Donacion
+<a href="https://www.buymeacoffee.com/jefrienalvn"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy Me A Coffee" height="40" width="150"></a>
+
+
+<a href="https://www.buymeacoffee.com/jefrienalvn">
+    <img src="https://github.com/user-attachments/assets/670c21ae-fccd-416d-b14b-34fe9d9c96bb" alt="Buy Me A Coffee" height="150" width="150">
+</a>
 
 ## Configuración y Seguridad
 

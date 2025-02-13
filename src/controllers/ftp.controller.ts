@@ -6,18 +6,37 @@ import path from 'path';
 import fs from 'fs';
 import { pathServerFormat } from '../utils';
 
+export class TimeoutError {
+    constructor(public message: string, public timeout: number = 10000) {
+        this.message = message;        
+        setTimeout(() => {
+            vscode.window.showErrorMessage(message);
+            throw new Error(message);
+        }, this.timeout);
+    }
+}
+
 export default class FtpClientController {
+
+    private static RECONNECT_THRESHOLD = 10 * 60 * 1000;
 
     private static instance: FtpClientController;
     private client: SFTPClient;
     public basePath: string;
     private status: 'connected' | 'disconnected' = 'disconnected';
+    public error: string = '';
     private currentConfig: ServerItem = {} as ServerItem;
+    private context: vscode.ExtensionContext = {} as vscode.ExtensionContext;
+    private conectionTime: number = 0;
 
     private constructor() {
         this.client = new SFTPClient();
         this.basePath = '/';
         this.registerEvents();
+    }
+
+    private writeLog(message: string, type: string = 'errors') {
+        fs.appendFileSync(this.context.extensionPath + '/'+type+'.log', message + '\n');
     }
 
     public static getInstance(): FtpClientController {
@@ -27,15 +46,33 @@ export default class FtpClientController {
         return FtpClientController.instance;
     }
 
+    public initContext(_context: vscode.ExtensionContext) {
+        this.context = _context;
+    }
+
     private registerEvents() {
         this.client.on('error', (err) => {
-            this.status = 'disconnected';
-            vscode.window.showErrorMessage('Error de conexión SFTP: ' + err.message);
+            this.status = 'disconnected';   
+            this.error = err.message;
+            if(err.message.endsWith('All configured authentication methods failed')) {
+                this.error = 'Error de autenticación';
+            }
+            this.writeLog('Error: ' + JSON.stringify({
+                code: this.error,
+                message: err.message,
+                config : this.currentConfig
+            }));        
             this.updateStatusConnection();
         });
 
-        this.client.on('end', () => {
-            vscode.window.showInformationMessage('Desconectado de SFTP');
+        this.client.on('end', () => {            
+            this.writeLog('Desconectado de SFTP END', 'disconnecteds');
+            this.status = 'disconnected';
+            this.updateStatusConnection();
+        });
+
+        this.client.on('close', () => {            
+            this.writeLog('Desconectado de SFTP Close', 'disconnecteds');
             this.status = 'disconnected';
             this.updateStatusConnection();
         });
@@ -59,6 +96,7 @@ export default class FtpClientController {
 
     public async connect(config: ServerItem) {
         this.currentConfig = config;
+        this.error = '';
         const { host, port, username, password } = config;                   
         try {
             if (this.status === 'connected') {
@@ -72,12 +110,13 @@ export default class FtpClientController {
                 port,
                 username,
                 password,
-                timeout: 10000,
+                readyTimeout: 10000,
                 retries: 2,
             });
             this.status = 'connected';
+            this.conectionTime = new Date().getTime();
         } catch (error: any) {
-            vscode.window.showErrorMessage('Error de conexión SFTP: ' + error.message);
+            //vscode.window.showErrorMessage('Error de conexión SFTP: ' + error.message);
             this.status = 'disconnected';
         } finally {
             this.updateStatusConnection();
@@ -85,7 +124,9 @@ export default class FtpClientController {
     }
 
     private async reconnector() {
-        if (this.status === 'disconnected') {
+        const now = new Date().getTime();
+        const isExpired = now - this.conectionTime > FtpClientController.RECONNECT_THRESHOLD;
+        if (this.status === 'disconnected' || isExpired) {
             await this.connect(this.currentConfig);
         }
     }
@@ -101,8 +142,18 @@ export default class FtpClientController {
         try {
             StatusBarController.getInstance().updateStatusBarText('SFTP: Listando directorio', true);
             await this.reconnector();            
+            
+            const timer = setTimeout(() => {
+                vscode.window.showErrorMessage('Error al listar el directorio');
+                throw new Error('Error al listar el directorio');
+            }, 10000);
+
 
             const files = await this.client.list(pathServerFormat(_path));
+            
+            // clear error timeout
+            clearTimeout(timer);
+
             this.updateStatusConnection();
             return files;
         } catch (error: any) {
@@ -117,7 +168,6 @@ export default class FtpClientController {
             await this.reconnector();
 
             const files = await this.client.list(pathServerFormat(_path));
-        
 
             this.updateStatusConnection();
         } catch (error: any) {
@@ -174,21 +224,35 @@ export default class FtpClientController {
                         vscode.window.showInformationMessage('Subida cancelada');
                     });
 
-                    await this.reconnector();
-
-                    await this.client.put(localPath, remotePath, {
-                        writeStreamOptions: {
-                            flags: 'w',
-                            encoding: 'utf8',
-                            mode: 0o666,
+                    return new Promise(async (resolve, reject) => {
+                        try {
+                            const timer = setTimeout(() => {
+                                vscode.window.showErrorMessage('Error al subir el archivo, reconectndo');                                
+                                reject(new Error('Error al subir el archivo'));                  
+                            }, 10000);                
+        
+                            await this.reconnector();
+        
+                            await this.client.put(localPath, remotePath, {
+                                writeStreamOptions: {
+                                    flags: 'w',
+                                    encoding: 'utf8',
+                                    mode: 0o666,
+                                }
+                            });
+                            
+                            // clear timer
+                            clearTimeout(timer);
+                            
+                            StatusBarController.getInstance().updateStatusBarText('SFTP: Archivo subido con exito', false);                                    
+                            this.updateStatusConnection();                            
+                            resolve(true);
+                        } catch (error: any) {
+                            vscode.window.showErrorMessage('Error al subir el archivo: ' + error.message);
+                            reject(error);
                         }
                     });
-                    StatusBarController.getInstance().updateStatusBarText('SFTP: Archivo subido con exito', false);
-
-                    setTimeout(() => {
-                        this.updateStatusConnection();
-                    }, 1000)
-                    return true;
+                                     
                 });
 
             }

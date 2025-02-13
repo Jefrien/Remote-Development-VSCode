@@ -65,6 +65,12 @@ export default class ServersController {
             });
 
             await FtpClientController.getInstance().connect(server);
+            const error = FtpClientController.getInstance().error;
+            if (error) {                
+                vscode.window.showErrorMessage(error);
+                return false;
+            }
+            
            
             FtpClientController.getInstance().setPath(server.path || '/');
             ExplorerController.getInstance(this.context).initServer();

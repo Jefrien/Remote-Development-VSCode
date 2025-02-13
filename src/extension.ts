@@ -20,7 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
 	ServersController.getInstance(context);	
 
 	// init ftp client
-	FtpClientController.getInstance();
+	FtpClientController.getInstance().initContext(context);
 
 	// init files controller
 	FilesController.getInstance(context);

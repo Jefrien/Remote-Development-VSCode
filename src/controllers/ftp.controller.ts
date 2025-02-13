@@ -36,7 +36,7 @@ export default class FtpClientController {
     }
 
     private writeLog(message: string, type: string = 'errors') {
-        fs.appendFileSync(this.context.extensionPath + '/'+type+'.log', message + '\n');
+       // fs.appendFileSync(this.context.extensionPath + '/'+type+'.log', message + '\n');
     }
 
     public static getInstance(): FtpClientController {

@@ -1,10 +1,10 @@
 # Remote Development for Visual Studio Code
 
-Esta extensión permite la conexión remota a un servidor FTP, SFTP o SSH, optimizando tu productividad y manteniendo tu entorno de desarrollo limpio y eficiente.
+Esta extensión permite la conexión remota a un servidor SFTP o SSH, optimizando tu productividad y manteniendo tu entorno de desarrollo limpio y eficiente.
 
 ## Características
 
-* Conectarse a un servidor FTP, SFTP o SSH.
+* Conectarse a un servidor SFTP o SSH.
 * Subir y descargar archivos.
 * Gestionar carpetas remotas.
 * Copiar y mover archivos y carpetas.
@@ -43,6 +43,8 @@ Lanzamiento inicial
 
 ---
 
+### TODO
+- Agregar soporte para servidores FTP por el momento solo SFTP y SSH son soportados.
 
 ## Extras
 

@@ -4,23 +4,23 @@ import ExplorerController, { FTPItem } from './explorer.controller';
 import path from 'path';
 import { Rights } from '../types';
 
+/**
+ * Handles file-related commands for the Remote Development extension.
+ */
 export default class FilesController {
-
     private static instance: FilesController;
     private context: vscode.ExtensionContext;
 
     private constructor(_context: vscode.ExtensionContext) {
         this.context = _context;
-
         const commands = [
-            vscode.commands.registerCommand('remote-development.save-and-upload', this.handleSaveAndUpload),
-            vscode.commands.registerCommand('remote-development.edit-file', this.handleContextEdit),
-            vscode.commands.registerCommand('remote-development.delete-file', this.handleContextDelete),
-            vscode.commands.registerCommand('remote-development.rename-file', this.handleContextRename),
-            vscode.commands.registerCommand('remote-development.change-permissions', this.handleContextChangePermissions),
-            vscode.commands.registerCommand('remote-development.copy-path', this.handleContextCopyPath),
+            vscode.commands.registerCommand('remote-development.save-and-upload', () => this.handleSaveAndUpload()),
+            vscode.commands.registerCommand('remote-development.edit-file', (item: FTPItem) => this.handleContextEdit(item)),
+            vscode.commands.registerCommand('remote-development.delete-file', (item: FTPItem) => this.handleContextDelete(item)),
+            vscode.commands.registerCommand('remote-development.rename-file', (item: FTPItem) => this.handleContextRename(item)),
+            vscode.commands.registerCommand('remote-development.change-permissions', (item: FTPItem) => this.handleContextChangePermissions(item)),
+            vscode.commands.registerCommand('remote-development.copy-path', (item: FTPItem) => this.handleContextCopyPath(item)),
         ];
-                                   
         this.context.subscriptions.push(...commands);
     }
 
@@ -31,109 +31,116 @@ export default class FilesController {
         return FilesController.instance;
     }
 
-    private async handleSaveAndUpload() {
+    /**
+     * Handles saving the current file and uploading it to the remote server.
+     */
+    private async handleSaveAndUpload(): Promise<void> {
         try {
             await FtpClientController.getInstance().uploadFile();
         } catch (err: any) {
-            vscode.window.showErrorMessage('Error uploading file: ' + err.message);
+            vscode.window.showErrorMessage(`Error uploading file: ${err.message}`);
         }
     }
 
-    private async handleContextEdit(item: FTPItem) {
-        // execute command remote-development.open-resource
-        vscode.commands.executeCommand('remote-development.open-resource', item);
+    /**
+     * Opens the selected file for editing.
+     * @param item The FTP item to edit
+     */
+    private async handleContextEdit(item: FTPItem): Promise<void> {
+        await vscode.commands.executeCommand('remote-development.open-resource', item);
     }
 
-    // delete file
-    private async handleContextDelete(item: FTPItem) {
-        try {           
-            const action = await vscode.window.showWarningMessage('¿Deseas eliminar el archivo?', 'Si', 'No');
-            if (action !== 'Si') {
+    /**
+     * Deletes the selected file after confirmation.
+     * @param item The FTP item to delete
+     */
+    private async handleContextDelete(item: FTPItem): Promise<void> {
+        try {
+            const action = await vscode.window.showWarningMessage(
+                'Do you want to delete this file?',
+                { modal: true },
+                'Yes', 'No'
+            );
+            if (action !== 'Yes') {
                 return;
             }
-
             const filename = path.basename(item.entry.name);
-
             await FtpClientController.getInstance().deleteFile(item.path);
-            ExplorerController.getInstanceAlt().refresh();            
-            vscode.window.showInformationMessage('Archivo eliminado: ' + filename);
+            await ExplorerController.getInstanceAlt().refresh();
+            vscode.window.showInformationMessage(`File deleted: ${filename}`);
         } catch (err: any) {
-            vscode.window.showErrorMessage('Error deleting file: ' + err.message);
+            vscode.window.showErrorMessage(`Error deleting file: ${err.message}`);
         }
     }
 
-    // rename file
-    private async handleContextRename(item: FTPItem) {
+    /**
+     * Renames the selected file.
+     * @param item The FTP item to rename
+     */
+    private async handleContextRename(item: FTPItem): Promise<void> {
         try {
             const newName = await vscode.window.showInputBox({
-                placeHolder: 'Ingrese el nuevo nombre del archivo',
-                value: item.entry.name
+                placeHolder: 'Enter the new file name',
+                value: item.entry.name,
+                prompt: 'Rename file'
             });
-
             if (!newName) {
                 return;
             }
-
-            let basepath = path.dirname(item.path);
-            basepath = path.join(basepath, newName);
-
-            await FtpClientController.getInstance().renameFile(item.path, basepath);
-            ExplorerController.getInstanceAlt().refresh();
-            vscode.window.showInformationMessage('Archivo renombrado: ' + newName);
-
+            const basePath = path.dirname(item.path);
+            const newPath = path.join(basePath, newName);
+            await FtpClientController.getInstance().renameFile(item.path, newPath);
+            await ExplorerController.getInstanceAlt().refresh();
+            vscode.window.showInformationMessage(`File renamed to: ${newName}`);
         } catch (err: any) {
-            vscode.window.showErrorMessage('Error renaming file: ' + err.message);
-        }
-    }    
-
-    // change permissions
-    private async handleContextChangePermissions(item: FTPItem) {
-
-
-        function translatePermissions(rights: Rights): string {
-            // converts rights to chmod format
-            let user: Number = Number(rights.user.replace('r', '4').replace('w', '2').replace('x', '1'));
-            let group: Number = Number(rights.group.replace('r', '4').replace('w', '2').replace('x', '1'));
-            let other: Number = Number(rights.other.replace('r', '4').replace('w', '2').replace('x', '1'));
-
-            // sum user digits 
-            user = Array.from(String(user), Number).reduce((a, b) => a + b, 0);
-
-            // sum group digits
-            group = Array.from(String(group), Number).reduce((a, b) => a + b, 0);
-
-            // sum other digits
-            other = Array.from(String(other), Number).reduce((a, b) => a + b, 0);
-    
-            return `${user}${group}${other}`;
-        }
-
-        try {            
-            const permissions = await vscode.window.showInputBox({
-                placeHolder: 'Ingrese los permisos del archivo',
-                value: translatePermissions(item.entry.rights)
-            });
-
-            if (!permissions) {
-                return;
-            }
-
-            await FtpClientController.getInstance().changePermissions(item.path, Number(permissions));
-            ExplorerController.getInstanceAlt().refresh();
-            vscode.window.showInformationMessage('Se actualizaron los permisos de: ' + item.entry.name);
-
-        } catch (err: any) {
-            vscode.window.showErrorMessage('Error changing permissions: ' + err.message);
+            vscode.window.showErrorMessage(`Error renaming file: ${err.message}`);
         }
     }
 
-    // copy path to clipboard
-    private async handleContextCopyPath(item: FTPItem) {
+    /**
+     * Changes the permissions of the selected file.
+     * @param item The FTP item whose permissions will be changed
+     */
+    private async handleContextChangePermissions(item: FTPItem): Promise<void> {
+        const translatePermissions = (rights: Rights): string => {
+            // Convert symbolic permissions (rwx) to octal (421)
+            const map: Record<string, string> = { r: '4', w: '2', x: '1', '-': '0' };
+            const user = rights.user.split('').map(c => map[c] || '0').join('');
+            const group = rights.group.split('').map(c => map[c] || '0').join('');
+            const other = rights.other.split('').map(c => map[c] || '0').join('');
+            // Sum each group's permissions
+            const sum = (s: string) => s.split('').reduce((a, b) => a + parseInt(b, 10), 0);
+            return `${sum(user)}${sum(group)}${sum(other)}`;
+        };
+
+        try {
+            const currentPermissions = translatePermissions(item.entry.rights);
+            const permissions = await vscode.window.showInputBox({
+                placeHolder: 'Enter file permissions (e.g., 644)',
+                value: currentPermissions,
+                prompt: 'Change file permissions'
+            });
+            if (!permissions) {
+                return;
+            }
+            await FtpClientController.getInstance().changePermissions(item.path, parseInt(permissions, 8));
+            await ExplorerController.getInstanceAlt().refresh();
+            vscode.window.showInformationMessage(`Permissions updated for: ${item.entry.name}`);
+        } catch (err: any) {
+            vscode.window.showErrorMessage(`Error changing permissions: ${err.message}`);
+        }
+    }
+
+    /**
+     * Copies the file path to the clipboard.
+     * @param item The FTP item whose path will be copied
+     */
+    private async handleContextCopyPath(item: FTPItem): Promise<void> {
         try {
             await vscode.env.clipboard.writeText(item.path);
-            vscode.window.showInformationMessage('Ruta copiada al portapapeles');
+            vscode.window.showInformationMessage('Path copied to clipboard');
         } catch (err: any) {
-            vscode.window.showErrorMessage('Error copying path: ' + err.message);
+            vscode.window.showErrorMessage(`Error copying path: ${err.message}`);
         }
     }
 }

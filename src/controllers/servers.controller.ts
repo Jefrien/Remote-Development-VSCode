@@ -1,41 +1,37 @@
 import * as vscode from 'vscode';
-import path from 'path';
-import fs from 'fs/promises';
 import { ServerItem } from '../types';
 import FtpClientController from './ftp.controller';
 import ExplorerController from './explorer.controller';
 import ConfigManager from './config-manager.controller';
 
-
-
 export default class ServersController {
-
     private static instance: ServersController;
     private context: vscode.ExtensionContext;
-    private config: {
-        servers: ServerItem[];
-    } = {
-            servers: []
-        };
+    private config: { servers: ServerItem[] } = { servers: [] };
 
     private constructor(_context: vscode.ExtensionContext) {
-        this.context = _context;        
-
-        const command = vscode.commands.registerCommand('remote-development.servers-list', async () => {
-            vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: "Cargando Servidores",
-                cancellable: true,
-
-            }, async (progress, token) => {
-                await this.loadServers();
-                this.showServersSelector();
-                return true;
-            });
-        });
-
+        this.context = _context;
+        // Register the command to list and connect to servers
+        const command = vscode.commands.registerCommand(
+            'remote-development.servers-list',
+            async () => {
+                await vscode.window.withProgress(
+                    {
+                        location: vscode.ProgressLocation.Notification,
+                        title: "Loading Servers",
+                        cancellable: true,
+                    },
+                    async (progress, token) => {
+                        token.onCancellationRequested(() => {
+                            vscode.window.showInformationMessage('Server loading cancelled');
+                        });
+                        await this.loadServers();
+                        this.showServersSelector();
+                    }
+                );
+            }
+        );
         this.context.subscriptions.push(command);
-
     }
 
     public static getInstance(_context: vscode.ExtensionContext): ServersController {
@@ -45,61 +41,78 @@ export default class ServersController {
         return ServersController.instance;
     }
 
-    public async loadServers() {
-        try {            
+    /**
+     * Loads the list of servers from the configuration file.
+     */
+    public async loadServers(): Promise<void> {
+        try {
             this.config = await ConfigManager.getInstance(this.context).loadConfig();
-        } catch (error) {
-            vscode.window.showErrorMessage('Error al cargar la configuración de servidores. Revisa la consola para más detalles.');
+        } catch (error: any) {
+            vscode.window.showErrorMessage(
+                `Error loading server configuration: ${error.message}. Check the console for details.`
+            );
+            throw error; // Re-throw to allow further handling if needed
         }
     }
 
-    private onSelectServer(server: ServerItem) {
-        vscode.window.withProgress({
-            location: vscode.ProgressLocation.Notification,
-            title: "Conectando a " + server.name,
-            cancellable: true,
-        }, async (progress, token) => {
+    /**
+     * Handles the selection of a server and initiates the connection.
+     * @param server The selected server configuration
+     */
+    private async onSelectServer(server: ServerItem): Promise<boolean> {
+        return vscode.window.withProgress(
+            {
+                location: vscode.ProgressLocation.Notification,
+                title: `Connecting to ${server.name}`,
+                cancellable: true,
+            },
+            async (progress, token) => {
+                token.onCancellationRequested(() => {
+                    vscode.window.showInformationMessage('Connection cancelled');
+                });
 
-            token.onCancellationRequested(() => {
-                vscode.window.showInformationMessage('Conexión cancelada');
-            });
+                try {
+                    const ftpClient = FtpClientController.getInstance();
+                    await ftpClient.connect(server);
 
-            await FtpClientController.getInstance().connect(server);
-            const error = FtpClientController.getInstance().error;
-            if (error) {                
-                vscode.window.showErrorMessage(error);
-                return false;
+                    if (ftpClient.error) {
+                        vscode.window.showErrorMessage(ftpClient.error);
+                        return false;
+                    }
+
+                    ftpClient.setPath(server.path || '/');
+                    ExplorerController.getInstance(this.context).initServer();
+                    return true;
+                } catch (error: any) {
+                    vscode.window.showErrorMessage(
+                        `Error connecting to server: ${error.message}`
+                    );
+                    return false;
+                }
             }
-            
-           
-            FtpClientController.getInstance().setPath(server.path || '/');
-            ExplorerController.getInstance(this.context).initServer();
-            
-            return true;
-        });
+        );
     }
 
-    public showServersSelector() {
-
-        const quickPickItems = this.config.servers.map(server => ({
+    /**
+     * Shows a quick pick menu to select a server from the loaded configuration.
+     */
+    public showServersSelector(): Thenable<boolean | undefined> {
+        const quickPickItems = this.config.servers.map((server) => ({
             label: server.name,
             description: `${server.host}:${server.port}`,
-            detail: `Usuario: ${server.username}`,
-            server: server
+            detail: `User: ${server.username}`,
+            server: server,
         }));
 
-        vscode.window.showQuickPick(quickPickItems, {
-            placeHolder: 'Selecciona un servidor',
+        return vscode.window.showQuickPick(quickPickItems, {
+            placeHolder: 'Select a server',
             matchOnDescription: true,
-            matchOnDetail: true
-        }).then( (selection) => {
+            matchOnDetail: true,
+        }).then((selection) => {
             if (selection) {
-                const server: ServerItem = selection.server;
-                this.onSelectServer(server);
-                return true;
+                return this.onSelectServer(selection.server);
             }
+            return undefined;
         });
-
     }
-
 }

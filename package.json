@@ -203,6 +203,7 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
+    "basic-ftp": "^5.0.5",
     "ssh2-sftp-client": "^11.0.0"
   }
 }

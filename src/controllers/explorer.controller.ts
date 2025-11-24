@@ -5,6 +5,7 @@ import { FTPNode } from '../types';
 import FtpClientController from './ftp.controller';
 import path from 'path';
 import { getTempDirectory, pathServerFormat } from '../utils';
+import fs from 'fs';
 
 export class FTPItem extends vscode.TreeItem {
 
@@ -93,7 +94,7 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
         return ExplorerController.instance;
     }
 
-    public async onOpenResource(item: FTPItem) {
+    public async onOpenResourceV1(item: FTPItem) {
         try {
             vscode.window.withProgress({
                 location: vscode.ProgressLocation.Window,
@@ -101,8 +102,8 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
                 cancellable: true
             }, async (progress, token) => {
                 const sftp = FtpClientController.getInstance();
-                const middle_path = item.entry.parent?.path || sftp.basePath;                
-                
+                const middle_path = item.entry.parent?.path || sftp.basePath;
+
                 // converts in base64
                 let remotePath = Buffer.from(pathServerFormat(middle_path)).toString('base64')
                 remotePath = path.posix.join(remotePath, item.entry.name);
@@ -124,14 +125,59 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
         }
     }
 
+    public async onOpenResource(item: FTPItem): Promise<void> {
+        const sftp = FtpClientController.getInstance();
+        const filename = path.basename(item.entry.name);
+        const tmpDir = path.join(getTempDirectory(), 'rd-vscode', sftp.config.host);
+        const middlePath = item.entry.parent?.path || sftp.basePath;
+        const remotePath = path.posix.join(middlePath, item.entry.name);
+        const localPath = path.join(tmpDir, remotePath);
+
+        try {
+            // Ensure the temporary directory exists
+            await fs.promises.mkdir(tmpDir, { recursive: true });
+
+            await vscode.window.withProgress(
+                {
+                    location: vscode.ProgressLocation.Window,
+                    title: `Opening file: ${filename}`,
+                    cancellable: true,
+                },
+                async (progress, token) => {
+                    // Listen for cancellation requests
+                    token.onCancellationRequested(() => {
+                        throw new Error('Operation cancelled by the user.');
+                    });
+
+                    // Download the file
+                    progress.report({ message: `Downloading ${filename}...` });
+                    await sftp.downloadFile(item.entry.path, localPath);
+
+                    // Open the document in VS Code
+                    const document = await vscode.workspace.openTextDocument(vscode.Uri.file(localPath));
+                    await vscode.window.showTextDocument(document);
+                }
+            );
+        } catch (err: any) {
+            // Optionally clean up the temporary file if the operation fails
+            if (fs.existsSync(localPath)) {
+                fs.unlinkSync(localPath);
+            }
+            vscode.window.showErrorMessage(
+                `Error opening file: ${err.message}`
+            );
+        }
+    }
+
+
     setData(data: FTPNode[]) {
         this.data = this.sortEntries(data);
         this._onDidChangeTreeData?.fire(data);
     }
-    
+
 
     initServer() {
-        const config = FtpClientController.getInstance().config;            
+        const config = FtpClientController.getInstance().config;
         this.data = [{
             name: config.name,
             path: config.path,
@@ -199,7 +245,7 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
                 };
             });
 
-            const sortChildrens = this.sortEntries(results);            
+            const sortChildrens = this.sortEntries(results);
 
             let items = sortChildrens.map(entry => {
                 const collapsibleState = entry.type === 'd' || entry.type === 'l'

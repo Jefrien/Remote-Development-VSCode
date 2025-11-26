@@ -1,83 +1,58 @@
 # Remote Development for Visual Studio Code
 
-Esta extensión permite la conexión remota a un servidor SFTP o SSH, optimizando tu productividad y manteniendo tu entorno de desarrollo limpio y eficiente.
+**Optimize your workflow by connecting to remote SFTP/SSH servers directly from VS Code.**
 
-## Características
-
-* Conectarse a un servidor SFTP o SSH.
-* Subir y descargar archivos.
-* Gestionar carpetas remotas.
-* Copiar y mover archivos y carpetas.
-* Renombrar archivos y carpetas.
-* Eliminar archivos y carpetas.
-* Copiar la ruta de acceso de un archivo o carpeta.
-* Visualizar el contenido de un archivo.
-* Visualizar el contenido de una carpeta.
-
-> Nota: No es necesario la descarga de todo el codigo fuente, cuando se selecciona un archivo este si se descarga de forma temporal en el dispositivo, por lo cual funciona con otras extensiones como que fuera local.
-
-## Apoyame con una Donacion
-<a href="https://www.buymeacoffee.com/jefrienalvn"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy Me A Coffee" height="40" width="150"></a>
-
-
-<a href="https://www.buymeacoffee.com/jefrienalvn">
-    <img src="https://github.com/user-attachments/assets/670c21ae-fccd-416d-b14b-34fe9d9c96bb" alt="Buy Me A Coffee" height="150" width="150">
-</a>
-
-## Configuración y Seguridad
-
-La configuración de los servidores se encuentra en un archivo plano en formato JSON, es tu responsabilidad mantenerlo seguro.
-
-## Problemas Conocidos
-
-No he encontrado ningun problema conocido, pero si tienes alguna sugerencia, por favor, no dudes en [crear un issue](https://github.com/Jefrien/Remote-Development-VSCode/issues/new).
-
-## Notas de la versión
-
-Lanzamiento inicial
-- Manejar Archivos (Crear, Renombrar, Eliminar, Subir, Editar)
-- Manejar Carpetas (Crear, Renombrar, Eliminar)
-- Subir Archivos
-- Arreglo en funcion para crear los paths remotos en Windows
-
+This extension allows you to seamlessly connect to remote servers via **SFTP or SSH**, enabling you to manage files and folders as if they were local. It’s designed to boost your productivity while keeping your development environment clean and efficient.
 
 ---
 
-### TODO
-- Agregar soporte para servidores FTP por el momento solo SFTP y SSH son soportados.
+## ✨ Features
 
-## Extras
+- Connect to **SFTP/SSH servers** with ease.
+- Upload and download files directly from the editor.
+- Manage remote folders (create, rename, move, delete).
+- Edit remote files without downloading the entire project.
+- Copy file/folder paths for quick access.
+- View file and folder contents in real-time.
+- Temporary local caching of selected files for smooth integration with other VS Code extensions.
 
-* Para guardar y subir el archivo que tienes abierto usa (`Alt+Shift+Q`) en cualquier sistema operativo.
-* La estructua de un servidor es la siguiente:
-    * `name`: Nombre del servidor
-    * `host`: Host del servidor
-    * `port`: Puerto del servidor
-    * `username`: Usuario del servidor
-    * `password`: Contrasena del servidor
-    * `path`: Ruta del servidor
+---
 
-#### Ejemplo:
+## 💙 Support the Project
+
+If you find this extension useful, consider supporting its development:
+
+[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-blue.png)](https://www.buymeacoffee.com/jefrienalvn)
+[![QR Code](https://github.com/user-attachments/assets/670c21ae-fccd-416d-b14b-34fe9d9c96bb)](https://www.buymeacoffee.com/jefrienalvn)
+
+---
+
+## 🔒 Configuration & Security
+
+Server configurations are stored in a **JSON file**. It is your responsibility to keep this file secure.
+
+### Example Configuration
 
 ```json
 {
     "servers": [
         {
-            "name": "Server SFTP/SSH Example 1",
+            "name": "SFTP/SSH Server Example",
             "host": "127.0.0.1",
             "username": "user_sftp",
             "password": "password_sftp",
             "port": 22,
-            "path": "/"
+            "path": "/",
+            "type": "sftp" // Defaults to SFTP if not specified
         },
         {
-            "name": "Server FTP Example 2",
+            "name": "FTP Server Example",
             "host": "localhost",
             "username": "user_ftp",
             "password": "password_ftp",
             "port": 21,
-            "path": "/public_html/"
+            "path": "/public_html/",
+            "type": "ftp" // Currently, only SFTP/SSH are supported
         }
     ]
 }
-```

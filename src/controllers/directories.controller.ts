@@ -143,7 +143,7 @@ export default class DirectoriesController {
                 await FtpClientController.getInstance().createFile(filename, localPath);
                 ExplorerController.getInstanceAlt().refresh();
                 vscode.window.showInformationMessage('Archivo subido con exito: ' + path.basename(localPath));
-                return true
+                return true;
             });
 
         } catch (err: any) {

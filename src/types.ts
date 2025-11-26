@@ -1,10 +1,12 @@
 export interface ServerItem {
+    id?: string;
     name: string;
     host: string;
-    username: string;
-    password: string;
+    username:string;
+    password?: string;
     port: number;
     path: string;
+    type?: 'sftp' | 'ftp';
 }
 
 export interface FTPNode {

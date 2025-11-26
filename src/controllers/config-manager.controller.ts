@@ -1,18 +1,10 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs/promises';
-
-interface ServerConfig {
-    name: string;
-    host: string;
-    username: string;
-    password: string;
-    port: number;
-    path: string;
-}
+import { ServerItem } from '../types';
 
 interface Config {
-    servers: ServerConfig[];
+    servers: ServerItem[];
 }
 
 /**
@@ -72,7 +64,8 @@ export default class ConfigManager {
                     username: "user_sftp",
                     password: "password_sftp",
                     port: 22,
-                    path: "/"
+                    path: "/",
+                    type: 'sftp'
                 },
                 {
                     name: "FTP Example Server 2",
@@ -80,7 +73,8 @@ export default class ConfigManager {
                     username: "user_ftp",
                     password: "password_ftp",
                     port: 21,
-                    path: "/public_html/"
+                    path: "/public_html/",
+                    type: 'ftp'
                 }
             ]
         };

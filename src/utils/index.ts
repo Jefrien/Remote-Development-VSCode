@@ -13,6 +13,13 @@ export function getTempDirectory() {
     return path.normalize(tempDir);
 }
 
-export function pathServerFormat(path: string) {        
-    return path.replace(/\\/g, '/');
+export function pathServerFormat(path: string) {     
+    let customPath = path.replace(/\\/g, '/');
+
+    // make path relative
+    if (customPath.startsWith('/')) {
+        customPath = customPath.substring(1);
+    }
+
+    return customPath;
 }

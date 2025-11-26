@@ -21,8 +21,7 @@ export class FTPItem extends vscode.TreeItem {
         this.entry = entry;
         this.path = entry.path;
 
-        this.remotePath = entry.remotePath
-
+        this.remotePath = entry.remotePath;
         // setup icon
         if (entry.type === 'd') {
             this.iconPath = new vscode.ThemeIcon('folder');
@@ -105,8 +104,7 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
                 const middle_path = item.entry.parent?.path || sftp.basePath;
 
                 // converts in base64
-                let remotePath = Buffer.from(pathServerFormat(middle_path)).toString('base64')
-                remotePath = path.posix.join(remotePath, item.entry.name);
+                let remotePath = Buffer.from(pathServerFormat(middle_path)).toString('base64');                remotePath = path.posix.join(remotePath, item.entry.name);
 
                 const tmpPath = getTempDirectory();
                 const file_path = path.join(tmpPath, 'rd-vscode', sftp.config.host, remotePath);
@@ -119,7 +117,7 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
                 let document = await vscode.workspace.openTextDocument(save_path);
                 vscode.window.showTextDocument(document);
                 return true;
-            })
+            });
         } catch (err: any) {
             vscode.window.showErrorMessage('Error opening file: ' + err.message);
         }
@@ -195,8 +193,7 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
             longname: config.name,
             isExpanded: true,
             description: config.host
-        } as FTPNode]
-        this._onDidChangeTreeData?.fire(undefined);
+        } as FTPNode];        this._onDidChangeTreeData?.fire(undefined);
     }
 
     addNewFile(item: FTPItem, filename: string) {

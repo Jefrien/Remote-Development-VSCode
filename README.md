@@ -1,14 +1,14 @@
 # Remote Development for Visual Studio Code
 
-**Optimize your workflow by connecting to remote SFTP/SSH servers directly from VS Code.**
+**Optimize your workflow by connecting to remote FTP, SFTP/SSH servers directly from VS Code.**
 
-This extension allows you to seamlessly connect to remote servers via **SFTP or SSH**, enabling you to manage files and folders as if they were local. It’s designed to boost your productivity while keeping your development environment clean and efficient.
+This extension allows you to seamlessly connect to remote servers via **FTP, SFTP or SSH**, enabling you to manage files and folders as if they were local. It’s designed to boost your productivity while keeping your development environment clean and efficient.
 
 ---
 
 ## ✨ Features
 
-- Connect to **SFTP/SSH servers** with ease.
+- Connect to **FTP and SFTP/SSH servers** with ease.
 - Upload and download files directly from the editor.
 - Manage remote folders (create, rename, move, delete).
 - Edit remote files without downloading the entire project.
@@ -52,7 +52,7 @@ Server configurations are stored in a **JSON file**. It is your responsibility t
             "password": "password_ftp",
             "port": 21,
             "path": "/public_html/",
-            "type": "ftp" // Currently, only SFTP/SSH are supported
+            "type": "ftp"
         }
     ]
 }

@@ -73,6 +73,12 @@ export default class ServersController {
 
                 try {
                     const ftpClient = FtpClientController.getInstance();
+
+                    // verify if server have id, if not generate a random one
+                    if (!server.id) {
+                        server.id = Math.random().toString(36).substring(2, 15);
+                    }
+
                     await ftpClient.connect(server);
 
                     if (ftpClient.error) {

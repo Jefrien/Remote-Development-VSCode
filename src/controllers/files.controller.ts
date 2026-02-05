@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import FtpClientController from './ftp.controller';
 import ExplorerController, { FTPItem } from './explorer.controller';
+import LocalizationManager from './localization.controller';
 import path from 'path';
 import { Rights } from '../types';
 
@@ -35,10 +36,11 @@ export default class FilesController {
      * Handles saving the current file and uploading it to the remote server.
      */
     private async handleSaveAndUpload(): Promise<void> {
+        const i18n = LocalizationManager.getInstance();
         try {
             await FtpClientController.getInstance().uploadFile();
         } catch (err: any) {
-            vscode.window.showErrorMessage(`Error uploading file: ${err.message}`);
+            vscode.window.showErrorMessage(i18n.t('messages.errorUploadingFile', err.message));
         }
     }
 
@@ -55,21 +57,22 @@ export default class FilesController {
      * @param item The FTP item to delete
      */
     private async handleContextDelete(item: FTPItem): Promise<void> {
+        const i18n = LocalizationManager.getInstance();
         try {
             const action = await vscode.window.showWarningMessage(
-                'Do you want to delete this file?',
+                i18n.t('messages.deleteFileConfirm'),
                 { modal: true },
-                'Yes', 'No'
+                i18n.t('messages.yes'), i18n.t('messages.no')
             );
-            if (action !== 'Yes') {
+            if (action !== i18n.t('messages.yes')) {
                 return;
             }
             const filename = path.basename(item.entry.name);
             await FtpClientController.getInstance().deleteFile(item.path);
             await ExplorerController.getInstanceAlt().refresh();
-            vscode.window.showInformationMessage(`File deleted: ${filename}`);
+            vscode.window.showInformationMessage(i18n.t('messages.fileDeleted', filename));
         } catch (err: any) {
-            vscode.window.showErrorMessage(`Error deleting file: ${err.message}`);
+            vscode.window.showErrorMessage(i18n.t('messages.errorDeletingFile', err.message));
         }
     }
 
@@ -78,11 +81,12 @@ export default class FilesController {
      * @param item The FTP item to rename
      */
     private async handleContextRename(item: FTPItem): Promise<void> {
+        const i18n = LocalizationManager.getInstance();
         try {
             const newName = await vscode.window.showInputBox({
-                placeHolder: 'Enter the new file name',
+                placeHolder: i18n.t('messages.enterNewFileName'),
                 value: item.entry.name,
-                prompt: 'Rename file'
+                prompt: i18n.t('messages.renameFile')
             });
             if (!newName) {
                 return;
@@ -91,9 +95,9 @@ export default class FilesController {
             const newPath = path.join(basePath, newName);
             await FtpClientController.getInstance().renameFile(item.path, newPath);
             await ExplorerController.getInstanceAlt().refresh();
-            vscode.window.showInformationMessage(`File renamed to: ${newName}`);
+            vscode.window.showInformationMessage(i18n.t('messages.fileRenamed', newName));
         } catch (err: any) {
-            vscode.window.showErrorMessage(`Error renaming file: ${err.message}`);
+            vscode.window.showErrorMessage(i18n.t('messages.errorRenamingFile', err.message));
         }
     }
 
@@ -102,6 +106,7 @@ export default class FilesController {
      * @param item The FTP item whose permissions will be changed
      */
     private async handleContextChangePermissions(item: FTPItem): Promise<void> {
+        const i18n = LocalizationManager.getInstance();
         const translatePermissions = (rights: Rights): string => {
             // Convert symbolic permissions (rwx) to octal (421)
             const map: Record<string, string> = { r: '4', w: '2', x: '1', '-': '0' };
@@ -116,18 +121,18 @@ export default class FilesController {
         try {
             const currentPermissions = translatePermissions(item.entry.rights);
             const permissions = await vscode.window.showInputBox({
-                placeHolder: 'Enter file permissions (e.g., 644)',
+                placeHolder: i18n.t('messages.enterFilePermissions'),
                 value: currentPermissions,
-                prompt: 'Change file permissions'
+                prompt: i18n.t('messages.changeFilePermissions')
             });
             if (!permissions) {
                 return;
             }
             await FtpClientController.getInstance().changePermissions(item.path, parseInt(permissions, 8));
             await ExplorerController.getInstanceAlt().refresh();
-            vscode.window.showInformationMessage(`Permissions updated for: ${item.entry.name}`);
+            vscode.window.showInformationMessage(i18n.t('messages.permissionsUpdated', item.entry.name));
         } catch (err: any) {
-            vscode.window.showErrorMessage(`Error changing permissions: ${err.message}`);
+            vscode.window.showErrorMessage(i18n.t('messages.errorChangingPermissions', err.message));
         }
     }
 
@@ -136,11 +141,12 @@ export default class FilesController {
      * @param item The FTP item whose path will be copied
      */
     private async handleContextCopyPath(item: FTPItem): Promise<void> {
+        const i18n = LocalizationManager.getInstance();
         try {
             await vscode.env.clipboard.writeText(item.path);
-            vscode.window.showInformationMessage('Path copied to clipboard');
+            vscode.window.showInformationMessage(i18n.t('messages.pathCopiedClipboard'));
         } catch (err: any) {
-            vscode.window.showErrorMessage(`Error copying path: ${err.message}`);
+            vscode.window.showErrorMessage(i18n.t('messages.errorCopyingPath', err.message));
         }
     }
 }

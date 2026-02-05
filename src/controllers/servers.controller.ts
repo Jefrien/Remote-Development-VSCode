@@ -3,6 +3,7 @@ import { ServerItem } from '../types';
 import FtpClientController from './ftp.controller';
 import ExplorerController from './explorer.controller';
 import ConfigManager from './config-manager.controller';
+import LocalizationManager from './localization.controller';
 
 export default class ServersController {
     private static instance: ServersController;
@@ -15,15 +16,16 @@ export default class ServersController {
         const command = vscode.commands.registerCommand(
             'remote-development.servers-list',
             async () => {
+                const i18n = LocalizationManager.getInstance();
                 await vscode.window.withProgress(
                     {
                         location: vscode.ProgressLocation.Notification,
-                        title: "Loading Servers",
+                        title: i18n.t('messages.loadingServers'),
                         cancellable: true,
                     },
                     async (progress, token) => {
                         token.onCancellationRequested(() => {
-                            vscode.window.showInformationMessage('Server loading cancelled');
+                            vscode.window.showInformationMessage(i18n.t('messages.serverLoadingCancelled'));
                         });
                         await this.loadServers();
                         this.showServersSelector();
@@ -48,8 +50,9 @@ export default class ServersController {
         try {
             this.config = await ConfigManager.getInstance(this.context).loadConfig();
         } catch (error: any) {
+            const i18n = LocalizationManager.getInstance();
             vscode.window.showErrorMessage(
-                `Error loading server configuration: ${error.message}. Check the console for details.`
+                i18n.t('messages.errorLoadingServerConfig', error.message)
             );
             throw error; // Re-throw to allow further handling if needed
         }
@@ -60,15 +63,16 @@ export default class ServersController {
      * @param server The selected server configuration
      */
     private async onSelectServer(server: ServerItem): Promise<boolean> {
+        const i18n = LocalizationManager.getInstance();
         return vscode.window.withProgress(
             {
                 location: vscode.ProgressLocation.Notification,
-                title: `Connecting to ${server.name}`,
+                title: i18n.t('messages.connectingTo', server.name),
                 cancellable: true,
             },
             async (progress, token) => {
                 token.onCancellationRequested(() => {
-                    vscode.window.showInformationMessage('Connection cancelled');
+                    vscode.window.showInformationMessage(i18n.t('messages.connectionCancelled'));
                 });
 
                 try {
@@ -91,7 +95,7 @@ export default class ServersController {
                     return true;
                 } catch (error: any) {
                     vscode.window.showErrorMessage(
-                        `Error connecting to server: ${error.message}`
+                        i18n.t('messages.errorConnectingServer', error.message)
                     );
                     return false;
                 }
@@ -103,6 +107,7 @@ export default class ServersController {
      * Shows a quick pick menu to select a server from the loaded configuration.
      */
     public showServersSelector(): Thenable<boolean | undefined> {
+        const i18n = LocalizationManager.getInstance();
         const quickPickItems = this.config.servers.map((server) => ({
             label: server.name,
             description: `${server.host}:${server.port}`,
@@ -111,7 +116,7 @@ export default class ServersController {
         }));
 
         return vscode.window.showQuickPick(quickPickItems, {
-            placeHolder: 'Select a server',
+            placeHolder: i18n.t('messages.selectServer'),
             matchOnDescription: true,
             matchOnDetail: true,
         }).then((selection) => {

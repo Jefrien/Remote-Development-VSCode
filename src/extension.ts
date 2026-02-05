@@ -5,16 +5,24 @@ import FtpClientController from './controllers/ftp.controller';
 import FilesController from './controllers/files.controller';
 import DirectoriesController from './controllers/directories.controller';
 import ConfigManager from './controllers/config-manager.controller';
+import LocalizationManager from './controllers/localization.controller';
+import LanguageController from './controllers/language.controller';
 
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
+
+	// init localization manager (must be first)
+	await LocalizationManager.getInstance().init(context);
 
 	// init config manager
-	ConfigManager.getInstance(context)
+	ConfigManager.getInstance(context);
 
 	// init status bar
 	const statusBar = StatusBarController.getInstance();
 	statusBar.showStatusBar();
+
+	// init language controller
+	LanguageController.getInstance(context);
 
 	// init servers picker
 	ServersController.getInstance(context);	

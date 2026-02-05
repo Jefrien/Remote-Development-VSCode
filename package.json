@@ -90,6 +90,10 @@
       {
         "command": "remote-development.copy-folder-path",
         "title": "Copiar ruta de acceso"
+      },
+      {
+        "command": "remote-development.change-language",
+        "title": "Change Language"
       }
     ],
     "menus": {

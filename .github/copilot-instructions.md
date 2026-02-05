@@ -27,13 +27,20 @@ All business logic is organized as **singleton controller classes** in `src/cont
 ## Key Implementation Details
 
 ### Localization System (i18n)
-The extension supports multiple languages with [LocalizationManager](src/controllers/localization.controller.ts):
-- **Languages**: English (en) and Spanish (es) by default
-- **Files**: Translation keys stored in `resources/locales/en.json` and `resources/locales/es.json`
-- **Usage**: `LocalizationManager.getInstance().t('messages.keyName', arg1, arg2)` — supports variable substitution with `{0}`, `{1}`, etc.
-- **Custom translations**: Users can create custom translations in `custom-translations.json` via the **Change Language** command
-- **Language switching**: `remote-development.change-language` command lets users select language or edit custom translations
-- **Persistence**: Language preference saved in `localization.json` alongside config
+The extension uses the **official VS Code localization API** (`vscode.l10n`) for both manifest and runtime strings:
+- **Languages**: English (en) and Spanish (es)
+- **Manifest localization** (command titles, view titles):
+  - Placeholders in `package.json` (e.g., `"title": "%commands.saveAndUpload%"`)
+  - Translations in `package.nls.json` (English) and `package.nls.es.json` (Spanish)
+- **Runtime localization** (strings in code):
+  - Use `vscode.l10n.t('English message text', args)` to translate runtime strings
+  - English bundles extracted into `l10n/bundle.l10n.json`
+  - Spanish translations in `l10n/bundle.l10n.es.json`
+  - Extension manifest includes `"l10n": "./l10n"` to enable localization
+- **Best practices**:
+  - All user-facing strings must use `vscode.l10n.t()` with English source text (not keys)
+  - Use plural forms and named placeholders for clarity: `vscode.l10n.t('File uploaded: {0}', filename)`
+  - String extraction: Run build/packaging to generate runtime bundles
 
 ### Protocol Detection
 `FtpClientController.connect()` determines protocol: **port === 21 or type === 'ftp'** → FTP client, otherwise SFTP.
@@ -72,8 +79,9 @@ npm run test       # Run unit tests (extension.test.ts)
 [src/test/extension.test.ts](src/test/extension.test.ts) — currently minimal; tests can verify controller initialization and command registration.
 
 ## Common Additions
-- **New file operations**: Add command to `package.json#/contributes/commands`, register in `FilesController`, call `FtpClientController` method
+- **New file operations**: Add command to `package.json#/contributes/commands` with `%key%` placeholder for title, add translations to `package.nls.json` and `package.nls.es.json`, register command in `FilesController`, call `FtpClientController` method
 - **New view columns**: Edit `ExplorerController.FTPItem.description` or `tooltip` getters
-- **Status indicators**: Modify `StatusBarController.updateStatusBarText()` messages
+- **Status indicators**: Modify `StatusBarController.updateStatusBarText()` messages; use `vscode.l10n.t()` for user-facing text
 - **Connection validation**: Enhance `FtpClientController.reconnector()` or error event handlers
-- **New user-facing strings**: Add to `resources/locales/en.json` and `es.json`, use `LocalizationManager.getInstance().t()` instead of hardcoded strings
+- **New user-facing strings**: Use `vscode.l10n.t('English message text', args)` in code; add translations to `l10n/bundle.l10n.es.json` for Spanish; update `l10n/bundle.l10n.json` for reference
+- **Adding a new language**: Create `package.nls.{locale}.json` for manifest translations and `l10n/bundle.l10n.{locale}.json` for runtime translations

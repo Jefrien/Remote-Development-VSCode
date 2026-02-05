@@ -1,0 +1,22 @@
+{
+  "commands.saveAndUpload": "Guardar y Subir",
+  "commands.openConfig": "Config",
+  "commands.serversList": "Elige Conexión",
+  "commands.openResource": "Abrir Recurso",
+  "commands.openFolder": "Abrir Carpeta Remota",
+  "commands.editFile": "Editar archivo",
+  "commands.deleteFile": "Eliminar archivo",
+  "commands.renameFile": "Renombrar archivo",
+  "commands.changePermissions": "Cambiar permisos del archivo",
+  "commands.copyPath": "Copiar ruta del archivo",
+  "commands.addFile": "Nuevo archivo",
+  "commands.addFolder": "Nueva carpeta",
+  "commands.uploadFile": "Subir archivo",
+  "commands.renameFolder": "Renombrar carpeta",
+  "commands.deleteFolder": "Eliminar carpeta",
+  "commands.copyFolderPath": "Copiar ruta de la carpeta",
+  "commands.changeLanguage": "Cambiar Idioma",
+
+  "views.remoteDevelopment.title": "Remote Development",
+  "views.remoteDevelopment.servers": "Servidores"
+}

@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import ExplorerController, { FTPItem } from './explorer.controller';
 import FtpClientController from './ftp.controller';
-import LocalizationManager from './localization.controller';
 import path from 'path';
 
 export default class DirectoriesController {
@@ -32,10 +31,9 @@ export default class DirectoriesController {
     }
 
     private async handleCreateFile(item: FTPItem) {
-        const i18n = LocalizationManager.getInstance();
         try {
             const filename = await vscode.window.showInputBox({
-                placeHolder: i18n.t('messages.enterFileName'),
+                placeHolder: vscode.l10n.t('Enter file name'),
                 value: ''
             });
 
@@ -43,101 +41,91 @@ export default class DirectoriesController {
                 const filepath = path.join(item.path, filename);
                 await FtpClientController.getInstance().createFile(filepath);
                 ExplorerController.getInstanceAlt().refresh();
-                vscode.window.showInformationMessage(i18n.t('messages.fileCreated', filename));
+                vscode.window.showInformationMessage(vscode.l10n.t('File created: {0}', filename));
             }
 
         } catch (err: any) {
-            const i18n = LocalizationManager.getInstance();
-            vscode.window.showErrorMessage(i18n.t('messages.errorCreatingFile', err.message));
+            vscode.window.showErrorMessage(vscode.l10n.t('Error creating file: {0}', err.message));
         }
     }
 
     // create folder
     private async handleCreateFolder(item: FTPItem) {
-        const i18n = LocalizationManager.getInstance();
         try {
             const foldername = await vscode.window.showInputBox({
-                placeHolder: i18n.t('messages.enterFolderName'),
+                placeHolder: vscode.l10n.t('Enter folder name'),
                 value: ''
             });
             if (foldername) {
                 const folderpath = path.join(item.path, foldername);
                 await FtpClientController.getInstance().createFolder(folderpath);
                 ExplorerController.getInstanceAlt().refresh();
-                vscode.window.showInformationMessage(i18n.t('messages.folderCreated', foldername));
+                vscode.window.showInformationMessage(vscode.l10n.t('Folder created: {0}', foldername));
             }
 
         } catch (err: any) {
-            const i18n = LocalizationManager.getInstance();
-            vscode.window.showErrorMessage(i18n.t('messages.errorCreatingFolder', err.message));
+            vscode.window.showErrorMessage(vscode.l10n.t('Error creating folder: {0}', err.message));
         }
     }
 
     // rename folder
     private async handleRenameFolder(item: FTPItem) {
-        const i18n = LocalizationManager.getInstance();
         try {
             const foldername = await vscode.window.showInputBox({
-                placeHolder: i18n.t('messages.enterNewFolderName'),
+                placeHolder: vscode.l10n.t('Enter the new folder name'),
                 value: item.entry.name
             });
             if (foldername) {
                 const folderpath = path.join(path.dirname(item.path), foldername);
                 await FtpClientController.getInstance().renameFolder(item.path, folderpath);
                 ExplorerController.getInstanceAlt().refresh();
-                vscode.window.showInformationMessage(i18n.t('messages.folderRenamed', foldername));
+                vscode.window.showInformationMessage(vscode.l10n.t('Folder renamed to: {0}', foldername));
             }
 
         } catch (err: any) {
-            const i18n = LocalizationManager.getInstance();
-            vscode.window.showErrorMessage(i18n.t('messages.errorRenamingFolder', err.message));
+            vscode.window.showErrorMessage(vscode.l10n.t('Error renaming folder: {0}', err.message));
         }
     }
 
     // delete folder
     private async handleDeleteFolder(item: FTPItem) {
-        const i18n = LocalizationManager.getInstance();
         try {
             const action = await vscode.window.showWarningMessage(
-                i18n.t('messages.deleteFolderConfirm'),
-                i18n.t('messages.yes'),
-                i18n.t('messages.no')
+                vscode.l10n.t('Do you want to delete this folder?'),
+                vscode.l10n.t('Yes'),
+                vscode.l10n.t('No')
             );
-            if (action !== i18n.t('messages.yes')) {
+            if (action !== vscode.l10n.t('Yes')) {
                 return;
             }
 
             await FtpClientController.getInstance().deleteFolder(item.path);
             ExplorerController.getInstanceAlt().refresh();
-            vscode.window.showInformationMessage(i18n.t('messages.folderDeleted', item.entry.name));
+            vscode.window.showInformationMessage(vscode.l10n.t('Folder deleted: {0}', item.entry.name));
         } catch (err: any) {
-            const i18n = LocalizationManager.getInstance();
-            vscode.window.showErrorMessage(i18n.t('messages.errorDeletingFolder', err.message));
+            vscode.window.showErrorMessage(vscode.l10n.t('Error deleting folder: {0}', err.message));
         }
     }
 
     // copy path to clipboard
     private async handleContextCopyPath(item: FTPItem) {
-        const i18n = LocalizationManager.getInstance();
         try {
             await vscode.env.clipboard.writeText(item.path);
-            vscode.window.showInformationMessage(i18n.t('messages.pathCopiedClipboard'));
+            vscode.window.showInformationMessage(vscode.l10n.t('Path copied to clipboard'));
         } catch (err: any) {
-            const i18n = LocalizationManager.getInstance();
-            vscode.window.showErrorMessage(i18n.t('messages.errorCopyingPath', err.message));
+            vscode.window.showErrorMessage(vscode.l10n.t('Error copying path: {0}', err.message));
         }
     }
 
     // upload file
     private async handleContextUploadFile(item: FTPItem) {
-        const i18n = LocalizationManager.getInstance();
         try {
             const file = await vscode.window.showOpenDialog({
                 canSelectFiles: true,
                 canSelectFolders: false,
                 canSelectMany: false,
-                openLabel: i18n.t('messages.selectFile'),
-                title: i18n.t('messages.selectFileDialog')
+                openLabel: vscode.l10n.t('Select file'),
+                title: vscode.l10n.t('Select a file to upload')
             });
 
             const localPath = file?.pop()?.fsPath;
@@ -147,24 +135,23 @@ export default class DirectoriesController {
 
             vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
-                title: i18n.t('messages.uploadingFile'),
+                title: vscode.l10n.t('Uploading file...'),
                 cancellable: true
             }, async (progress, token) => {
                 token.onCancellationRequested(() => {
-                    vscode.window.showInformationMessage(i18n.t('messages.uploadCancelled'));
+                    vscode.window.showInformationMessage(vscode.l10n.t('Upload cancelled'));
                 });
                 let filename = path.basename(localPath);
                 filename = path.join(item.path, filename);
 
                 await FtpClientController.getInstance().createFile(filename, localPath);
                 ExplorerController.getInstanceAlt().refresh();
-                vscode.window.showInformationMessage(i18n.t('messages.fileUploadedSuccess', path.basename(localPath)));
+                vscode.window.showInformationMessage(vscode.l10n.t('File uploaded: {0}', path.basename(localPath)));
                 return true;
             });
 
         } catch (err: any) {
-            const i18n = LocalizationManager.getInstance();
-            vscode.window.showErrorMessage(i18n.t('messages.errorUploadingFile', err.message));
+            vscode.window.showErrorMessage(vscode.l10n.t('Error uploading file: {0}', err.message));
         }
     }
 

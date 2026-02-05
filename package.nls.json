@@ -1,0 +1,22 @@
+{
+  "commands.saveAndUpload": "Save and Upload",
+  "commands.openConfig": "Config",
+  "commands.serversList": "Choose Connection",
+  "commands.openResource": "Open Resource",
+  "commands.openFolder": "Open Remote Folder",
+  "commands.editFile": "Edit File",
+  "commands.deleteFile": "Delete File",
+  "commands.renameFile": "Rename File",
+  "commands.changePermissions": "Change File Permissions",
+  "commands.copyPath": "Copy File Path",
+  "commands.addFile": "New File",
+  "commands.addFolder": "New Folder",
+  "commands.uploadFile": "Upload File",
+  "commands.renameFolder": "Rename Folder",
+  "commands.deleteFolder": "Delete Folder",
+  "commands.copyFolderPath": "Copy Folder Path",
+  "commands.changeLanguage": "Change Language",
+
+  "views.remoteDevelopment.title": "Remote Development",
+  "views.remoteDevelopment.servers": "Servers"
+}

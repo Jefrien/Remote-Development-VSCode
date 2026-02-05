@@ -2,7 +2,7 @@
   "name": "remote-development-ts",
   "displayName": "Remote Development - FTP, SFTP, SSH Manager",
   "description": "Gestiona fácilmente conexiones FTP, SFTP y SSH, optimizando tu productividad y manteniendo tu entorno de desarrollo limpio y eficiente.",
-  "version": "1.1.0",
+  "version": "1.2.1",
   "repository": "https://github.com/Jefrien/Remote-Development-VSCode",
   "publisher": "jdevs",
   "icon": "resources/icon.png",
@@ -12,8 +12,9 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": ["*"],
+  "activationEvents": [],
   "main": "./out/extension.js",
+  "l10n": "./l10n",
   "contributes": {
     "keybindings": [
       {
@@ -25,11 +26,11 @@
     "commands": [
       {
         "command": "remote-development.save-and-upload",
-        "title": "Guardar y Subir"
+        "title": "%commands.saveAndUpload%"
       },
       {
         "command": "remote-development.open-config",
-        "title": "Config",
+        "title": "%commands.openConfig%",
         "icon": {
           "light": "resources/light/settings-icon.svg",
           "dark": "resources/dark/settings-icon.svg"
@@ -37,63 +38,63 @@
       },
       {
         "command": "remote-development.servers-list",
-        "title": "Elige Conexion"
+        "title": "%commands.serversList%"
       },
       {
         "command": "remote-development.open-resource",
-        "title": "Abrir Recurso"
+        "title": "%commands.openResource%"
       },
       {
         "command": "remote-development.open-folder",
-        "title": "Abrir Folder Remoto"
+        "title": "%commands.openFolder%"
       },
       {
         "command": "remote-development.edit-file",
-        "title": "Editar archivo"
+        "title": "%commands.editFile%"
       },
       {
         "command": "remote-development.delete-file",
-        "title": "Eliminar archivo"
+        "title": "%commands.deleteFile%"
       },
       {
         "command": "remote-development.rename-file",
-        "title": "Renombrar archivo"
+        "title": "%commands.renameFile%"
       },
       {
         "command": "remote-development.change-permissions",
-        "title": "Cambiar permisos del archivo"
+        "title": "%commands.changePermissions%"
       },
       {
         "command": "remote-development.copy-path",
-        "title": "Copiar ruta del archivo"
+        "title": "%commands.copyPath%"
       },
       {
         "command": "remote-development.add-file",
-        "title": "Nuevo archivo"
+        "title": "%commands.addFile%"
       },
       {
         "command": "remote-development.add-folder",
-        "title": "Nueva carpeta"
+        "title": "%commands.addFolder%"
       },
       {
         "command": "remote-development.upload-file",
-        "title": "Subir archivo"
+        "title": "%commands.uploadFile%"
       },
       {
         "command": "remote-development.rename-folder",
-        "title": "Renombrar carpeta"
+        "title": "%commands.renameFolder%"
       },
       {
         "command": "remote-development.delete-folder",
-        "title": "Eliminar Carpeta"
+        "title": "%commands.deleteFolder%"
       },
       {
         "command": "remote-development.copy-folder-path",
-        "title": "Copiar ruta de acceso"
+        "title": "%commands.copyFolderPath%"
       },
       {
         "command": "remote-development.change-language",
-        "title": "Change Language"
+        "title": "%commands.changeLanguage%"
       }
     ],
     "menus": {
@@ -171,7 +172,7 @@
       "activitybar": [
         {
           "id": "remote-development-container",
-          "title": "Remote Development",
+          "title": "%views.remoteDevelopment.title%",
           "icon": "resources/icon.svg"
         }
       ]
@@ -180,7 +181,7 @@
       "remote-development-container": [
         {
           "id": "remote-servers",
-          "name": "Servers"
+          "name": "%views.remoteDevelopment.servers%"
         }
       ]
     }

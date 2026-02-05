@@ -3,7 +3,6 @@ import { ServerItem } from '../types';
 import FtpClientController from './ftp.controller';
 import ExplorerController from './explorer.controller';
 import ConfigManager from './config-manager.controller';
-import LocalizationManager from './localization.controller';
 
 export default class ServersController {
     private static instance: ServersController;
@@ -16,16 +15,15 @@ export default class ServersController {
         const command = vscode.commands.registerCommand(
             'remote-development.servers-list',
             async () => {
-                const i18n = LocalizationManager.getInstance();
                 await vscode.window.withProgress(
                     {
                         location: vscode.ProgressLocation.Notification,
-                        title: i18n.t('messages.loadingServers'),
+                        title: vscode.l10n.t('Loading Servers'),
                         cancellable: true,
                     },
                     async (progress, token) => {
                         token.onCancellationRequested(() => {
-                            vscode.window.showInformationMessage(i18n.t('messages.serverLoadingCancelled'));
+                            vscode.window.showInformationMessage(vscode.l10n.t('Server loading cancelled'));
                         });
                         await this.loadServers();
                         this.showServersSelector();
@@ -50,9 +48,8 @@ export default class ServersController {
         try {
             this.config = await ConfigManager.getInstance(this.context).loadConfig();
         } catch (error: any) {
-            const i18n = LocalizationManager.getInstance();
             vscode.window.showErrorMessage(
-                i18n.t('messages.errorLoadingServerConfig', error.message)
+                vscode.l10n.t('Error loading server configuration: {0}. Check the console for details.', error.message)
             );
             throw error; // Re-throw to allow further handling if needed
         }
@@ -63,16 +60,15 @@ export default class ServersController {
      * @param server The selected server configuration
      */
     private async onSelectServer(server: ServerItem): Promise<boolean> {
-        const i18n = LocalizationManager.getInstance();
         return vscode.window.withProgress(
             {
                 location: vscode.ProgressLocation.Notification,
-                title: i18n.t('messages.connectingTo', server.name),
+                title: vscode.l10n.t('Connecting to {0}', server.name),
                 cancellable: true,
             },
             async (progress, token) => {
                 token.onCancellationRequested(() => {
-                    vscode.window.showInformationMessage(i18n.t('messages.connectionCancelled'));
+                    vscode.window.showInformationMessage(vscode.l10n.t('Connection cancelled'));
                 });
 
                 try {
@@ -95,7 +91,7 @@ export default class ServersController {
                     return true;
                 } catch (error: any) {
                     vscode.window.showErrorMessage(
-                        i18n.t('messages.errorConnectingServer', error.message)
+                        vscode.l10n.t('Error connecting to server: {0}', error.message)
                     );
                     return false;
                 }
@@ -107,7 +103,7 @@ export default class ServersController {
      * Shows a quick pick menu to select a server from the loaded configuration.
      */
     public showServersSelector(): Thenable<boolean | undefined> {
-        const i18n = LocalizationManager.getInstance();
+        
         const quickPickItems = this.config.servers.map((server) => ({
             label: server.name,
             description: `${server.host}:${server.port}`,
@@ -116,7 +112,7 @@ export default class ServersController {
         }));
 
         return vscode.window.showQuickPick(quickPickItems, {
-            placeHolder: i18n.t('messages.selectServer'),
+            placeHolder: vscode.l10n.t('Select a server'),
             matchOnDescription: true,
             matchOnDetail: true,
         }).then((selection) => {

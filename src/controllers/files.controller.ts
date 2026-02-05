@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import FtpClientController from './ftp.controller';
 import ExplorerController, { FTPItem } from './explorer.controller';
-import LocalizationManager from './localization.controller';
 import path from 'path';
 import { Rights } from '../types';
 
@@ -36,11 +35,10 @@ export default class FilesController {
      * Handles saving the current file and uploading it to the remote server.
      */
     private async handleSaveAndUpload(): Promise<void> {
-        const i18n = LocalizationManager.getInstance();
         try {
             await FtpClientController.getInstance().uploadFile();
         } catch (err: any) {
-            vscode.window.showErrorMessage(i18n.t('messages.errorUploadingFile', err.message));
+                vscode.window.showErrorMessage(vscode.l10n.t('Error uploading file: {0}', err.message));
         }
     }
 
@@ -57,22 +55,21 @@ export default class FilesController {
      * @param item The FTP item to delete
      */
     private async handleContextDelete(item: FTPItem): Promise<void> {
-        const i18n = LocalizationManager.getInstance();
         try {
             const action = await vscode.window.showWarningMessage(
-                i18n.t('messages.deleteFileConfirm'),
+                 vscode.l10n.t('Do you want to delete this file?'),
                 { modal: true },
-                i18n.t('messages.yes'), i18n.t('messages.no')
+                 vscode.l10n.t('Yes'), vscode.l10n.t('No')
             );
-            if (action !== i18n.t('messages.yes')) {
+            if (action !== vscode.l10n.t('Yes')) {
                 return;
             }
             const filename = path.basename(item.entry.name);
             await FtpClientController.getInstance().deleteFile(item.path);
             await ExplorerController.getInstanceAlt().refresh();
-            vscode.window.showInformationMessage(i18n.t('messages.fileDeleted', filename));
+              vscode.window.showInformationMessage(vscode.l10n.t('File deleted: {0}', filename));
         } catch (err: any) {
-            vscode.window.showErrorMessage(i18n.t('messages.errorDeletingFile', err.message));
+              vscode.window.showErrorMessage(vscode.l10n.t('Error deleting file: {0}', err.message));
         }
     }
 
@@ -81,12 +78,11 @@ export default class FilesController {
      * @param item The FTP item to rename
      */
     private async handleContextRename(item: FTPItem): Promise<void> {
-        const i18n = LocalizationManager.getInstance();
         try {
             const newName = await vscode.window.showInputBox({
-                placeHolder: i18n.t('messages.enterNewFileName'),
+                placeHolder: vscode.l10n.t('Enter the new file name'),
                 value: item.entry.name,
-                prompt: i18n.t('messages.renameFile')
+                prompt: vscode.l10n.t('Rename file')
             });
             if (!newName) {
                 return;
@@ -95,9 +91,9 @@ export default class FilesController {
             const newPath = path.join(basePath, newName);
             await FtpClientController.getInstance().renameFile(item.path, newPath);
             await ExplorerController.getInstanceAlt().refresh();
-            vscode.window.showInformationMessage(i18n.t('messages.fileRenamed', newName));
+                vscode.window.showInformationMessage(vscode.l10n.t('File renamed to: {0}', newName));
         } catch (err: any) {
-            vscode.window.showErrorMessage(i18n.t('messages.errorRenamingFile', err.message));
+                vscode.window.showErrorMessage(vscode.l10n.t('Error renaming file: {0}', err.message));
         }
     }
 
@@ -106,7 +102,6 @@ export default class FilesController {
      * @param item The FTP item whose permissions will be changed
      */
     private async handleContextChangePermissions(item: FTPItem): Promise<void> {
-        const i18n = LocalizationManager.getInstance();
         const translatePermissions = (rights: Rights): string => {
             // Convert symbolic permissions (rwx) to octal (421)
             const map: Record<string, string> = { r: '4', w: '2', x: '1', '-': '0' };
@@ -121,18 +116,18 @@ export default class FilesController {
         try {
             const currentPermissions = translatePermissions(item.entry.rights);
             const permissions = await vscode.window.showInputBox({
-                placeHolder: i18n.t('messages.enterFilePermissions'),
+                placeHolder: vscode.l10n.t('Enter file permissions (e.g., 644)'),
                 value: currentPermissions,
-                prompt: i18n.t('messages.changeFilePermissions')
+                prompt: vscode.l10n.t('Change file permissions')
             });
             if (!permissions) {
                 return;
             }
             await FtpClientController.getInstance().changePermissions(item.path, parseInt(permissions, 8));
             await ExplorerController.getInstanceAlt().refresh();
-            vscode.window.showInformationMessage(i18n.t('messages.permissionsUpdated', item.entry.name));
+                vscode.window.showInformationMessage(vscode.l10n.t('Permissions updated for: {0}', item.entry.name));
         } catch (err: any) {
-            vscode.window.showErrorMessage(i18n.t('messages.errorChangingPermissions', err.message));
+                vscode.window.showErrorMessage(vscode.l10n.t('Error changing permissions: {0}', err.message));
         }
     }
 
@@ -141,12 +136,11 @@ export default class FilesController {
      * @param item The FTP item whose path will be copied
      */
     private async handleContextCopyPath(item: FTPItem): Promise<void> {
-        const i18n = LocalizationManager.getInstance();
         try {
             await vscode.env.clipboard.writeText(item.path);
-            vscode.window.showInformationMessage(i18n.t('messages.pathCopiedClipboard'));
+              vscode.window.showInformationMessage(vscode.l10n.t('Path copied to clipboard'));
         } catch (err: any) {
-            vscode.window.showErrorMessage(i18n.t('messages.errorCopyingPath', err.message));
+              vscode.window.showErrorMessage(vscode.l10n.t('Error copying path: {0}', err.message));
         }
     }
 }

@@ -369,6 +369,7 @@ select.invalid {
 .status {
     min-height: 20px;
     margin-top: 14px;
+    background: var(--vscode-editor-background);
     color: var(--vscode-testing-iconPassed);
     font-size: 12px;
 }

@@ -91,6 +91,7 @@ Code SecretStorage y deja un marcador en el JSON persistente.
       "name": "Mi servidor con SSH key",
       "host": "example.com",
       "username": "deploy",
+      "authMethod": "privateKey",
       "privateKeyPath": "~/.ssh/id_ed25519",
       "passphrase": "mi-passphrase",
       "port": 22,
@@ -114,6 +115,7 @@ guardar la configuración.
 | `host` | Sí | Dominio o IP del servidor. |
 | `username` | Sí | Usuario de conexión. |
 | `password` | No | Contraseña; se guarda en SecretStorage al guardar. |
+| `authMethod` | No | `password` o `privateKey`; por defecto se infiere según los campos configurados. |
 | `privateKeyPath` | No | Ruta local de la clave privada SSH; aplica a SFTP. Se puede usar en lugar de `password`. |
 | `passphrase` | No | Passphrase de la clave privada; se guarda en SecretStorage. |
 | `port` | Sí | Normalmente `22` para SFTP o `21` para FTPS. |

@@ -200,8 +200,10 @@ export default class FtpClientController {
     public async connect(config: ServerItem, token?: vscode.CancellationToken) {
         const nextConnectionType: 'ftp' | 'sftp' = config.port === 21 || config.type === 'ftp' ? 'ftp' : 'sftp';
         const { host, port, username, password, privateKeyPath } = config;
+        const usePrivateKey = nextConnectionType === 'sftp'
+            && (config.authMethod === 'privateKey' || (!config.authMethod && Boolean(privateKeyPath)));
 
-        if (nextConnectionType === 'sftp' && !password && !privateKeyPath) {
+        if (nextConnectionType === 'sftp' && ((!usePrivateKey && !password) || (usePrivateKey && !privateKeyPath))) {
             throw new Error('A password or private key is required. Configure one through the connection editor.');
         }
         if (nextConnectionType === 'ftp' && !password) {
@@ -268,6 +270,7 @@ export default class FtpClientController {
         let trustError: Error | undefined;
         let verificationActive = true;
         let verificationCompleted = false;
+        const usePrivateKey = config.authMethod === 'privateKey' || (!config.authMethod && Boolean(config.privateKeyPath));
 
         // A rejected host-key verification leaves ssh2-sftp-client in a
         // terminal state. Always use a fresh client for a new handshake.
@@ -344,15 +347,15 @@ export default class FtpClientController {
                     host: config.host,
                     port: config.port,
                     username: config.username,
-                    ...(config.password ? { password: config.password } : {}),
-                    ...(config.privateKeyPath ? {
+                    ...(!usePrivateKey && config.password ? { password: config.password } : {}),
+                    ...(usePrivateKey && config.privateKeyPath ? {
                         privateKey: await fs.promises.readFile(
                             config.privateKeyPath.startsWith('~/')
                                 ? path.join(os.homedir(), config.privateKeyPath.slice(2))
                                 : config.privateKeyPath
                         )
                     } : {}),
-                    ...(config.passphrase ? { passphrase: config.passphrase } : {}),
+                    ...(usePrivateKey && config.passphrase ? { passphrase: config.passphrase } : {}),
                     hostHash: 'sha256',
                     hostVerifier: verifyHostKey,
                     readyTimeout: 10000,

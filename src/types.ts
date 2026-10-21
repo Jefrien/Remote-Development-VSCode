@@ -4,6 +4,7 @@ export interface ServerItem {
     host: string;
     username:string;
     password?: string;
+    authMethod?: 'password' | 'privateKey';
     privateKeyPath?: string;
     passphrase?: string;
     port: number;

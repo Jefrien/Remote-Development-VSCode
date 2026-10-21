@@ -170,6 +170,7 @@ export default class ConfigManager {
                         await this.saveConfig(message.config);
                         await panel.webview.postMessage({ type: 'saved', config: await this.loadConfig() });
                         await this.postConnectionState(panel);
+                        vscode.window.showInformationMessage(LocalizationManager.getInstance().t('Configuration saved'));
                         break;
                     case 'connect':
                         await vscode.commands.executeCommand('remote-development.connect-server', message.serverId);
@@ -185,6 +186,19 @@ export default class ConfigManager {
                     case 'open-json':
                         await this.openInEditor();
                         break;
+                    case 'select-private-key': {
+                        const selection = await vscode.window.showOpenDialog({
+                            canSelectFiles: true,
+                            canSelectFolders: false,
+                            canSelectMany: false,
+                            openLabel: 'Select private key'
+                        });
+                        const keyPath = selection?.[0]?.fsPath;
+                        if (keyPath) {
+                            await panel.webview.postMessage({ type: 'private-key-selected', path: keyPath });
+                        }
+                        break;
+                    }
                 }
             } catch (error: any) {
                 await panel.webview.postMessage({
@@ -210,7 +224,7 @@ export default class ConfigManager {
             add: 'Nueva conexión', empty: 'Aún no hay conexiones', emptyHint: 'Agrega tu primer servidor para comenzar.',
             selectHint: 'Selecciona una conexión para editarla.', details: 'Detalles de conexión', name: 'Nombre',
             host: 'Host', username: 'Usuario', password: 'Contraseña', privateKeyPath: 'Ruta de clave privada', passphrase: 'Passphrase de la clave', port: 'Puerto', path: 'Ruta remota',
-            protocol: 'Protocolo', secure: 'Usar FTPS seguro', save: 'Guardar conexión', delete: 'Eliminar',
+            authMethod: 'Método de autenticación', passwordAuth: 'Contraseña', keyAuth: 'Clave privada', chooseKey: 'Elegir archivo', protocol: 'Protocolo', secure: 'Usar FTPS seguro', save: 'Guardar conexión', delete: 'Eliminar',
             saved: 'Configuración guardada', newConnection: 'Nueva conexión', sftpHint: 'SFTP / SSH',
             ftpHint: 'FTP sobre TLS', passwordHint: 'Se guardará de forma segura en SecretStorage', privateKeyHint: 'Opcional; por ejemplo ~/.ssh/id_ed25519', passphraseHint: 'Opcional; se guardará en SecretStorage',
             required: 'Obligatorio', confirmDelete: '¿Eliminar esta conexión?', invalid: 'Completa los campos obligatorios.',
@@ -223,7 +237,7 @@ export default class ConfigManager {
             add: 'New connection', empty: 'No connections yet', emptyHint: 'Add your first server to get started.',
             selectHint: 'Select a connection to edit it.', details: 'Connection details', name: 'Name',
             host: 'Host', username: 'Username', password: 'Password', privateKeyPath: 'Private key path', passphrase: 'Key passphrase', port: 'Port', path: 'Remote path',
-            protocol: 'Protocol', secure: 'Use secure FTPS', save: 'Save connection', delete: 'Delete',
+            authMethod: 'Authentication method', passwordAuth: 'Password', keyAuth: 'Private key', chooseKey: 'Choose file', protocol: 'Protocol', secure: 'Use secure FTPS', save: 'Save connection', delete: 'Delete',
             saved: 'Configuration saved', newConnection: 'New connection', sftpHint: 'SFTP / SSH',
             ftpHint: 'FTP over TLS', passwordHint: 'Stored securely in SecretStorage', privateKeyHint: 'Optional; for example ~/.ssh/id_ed25519', passphraseHint: 'Optional; stored in SecretStorage',
             required: 'Required', confirmDelete: 'Delete this connection?', invalid: 'Complete the required fields.',
@@ -407,6 +421,9 @@ export default class ConfigManager {
             }
             if (candidate.type !== undefined && candidate.type !== 'sftp' && candidate.type !== 'ftp') {
                 throw new Error(`Invalid protocol at index ${index}`);
+            }
+            if (candidate.authMethod !== undefined && candidate.authMethod !== 'password' && candidate.authMethod !== 'privateKey') {
+                throw new Error(`Invalid authentication method at index ${index}`);
             }
             if (candidate.password !== undefined && (typeof candidate.password !== 'string' || candidate.password.length > 4096 || /[\u0000-\u001f\u007f]/.test(candidate.password))) {
                 throw new Error(`Invalid password at index ${index}`);

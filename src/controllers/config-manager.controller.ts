@@ -330,7 +330,7 @@ export default class ConfigManager {
             })));
 
             // Migrate legacy plaintext passwords and assign stable IDs immediately.
-            if (parsed.servers.some(server => server.password || !server.id)) {
+            if (parsed.servers.some(server => server.password !== '<stored in VS Code SecretStorage>' || !server.id)) {
                 await this.saveConfig({ servers });
             }
             return { servers };

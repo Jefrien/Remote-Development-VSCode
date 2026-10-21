@@ -149,16 +149,21 @@ export default class DirectoriesController {
                 title: LocalizationManager.getInstance().t('Uploading file...'),
                 cancellable: true
             }, async (progress, token) => {
-                token.onCancellationRequested(() => {
+                const cancellationSubscription = token.onCancellationRequested(() => {
                     vscode.window.showInformationMessage(LocalizationManager.getInstance().t('Upload cancelled'));
                 });
-                let filename = path.basename(localPath);
-                filename = path.join(item.path, filename);
-
-                await FtpClientController.getInstance().uploadLocalFile(localPath, filename);
-                ExplorerController.getInstanceAlt().refresh();
-                vscode.window.showInformationMessage(LocalizationManager.getInstance().t('File uploaded: {0}', path.basename(localPath)));
-                return true;
+                try {
+                    const filename = path.posix.join(item.path, path.basename(localPath));
+                    await FtpClientController.getInstance().uploadLocalFile(localPath, filename, token);
+                    if (token.isCancellationRequested) {
+                        return false;
+                    }
+                    ExplorerController.getInstanceAlt().refresh();
+                    vscode.window.showInformationMessage(LocalizationManager.getInstance().t('File uploaded: {0}', path.basename(localPath)));
+                    return true;
+                } finally {
+                    cancellationSubscription.dispose();
+                }
             });
 
         } catch (err: any) {

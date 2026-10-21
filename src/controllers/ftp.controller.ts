@@ -328,7 +328,13 @@ export default class FtpClientController {
         }) as unknown as HostFingerprintVerifier;
 
         let timeout: NodeJS.Timeout | undefined;
+        let transportCancellationSubscription: vscode.Disposable | undefined;
         try {
+            const cancellationPromise = token
+                ? new Promise<never>((_, reject) => {
+                    transportCancellationSubscription = token.onCancellationRequested(() => reject(new Error('Connection cancelled')));
+                })
+                : undefined;
             await Promise.race([
                 this.client.connect({
                     host: config.host,
@@ -343,7 +349,7 @@ export default class FtpClientController {
                 new Promise<never>((_, reject) => {
                     timeout = setTimeout(() => reject(new Error('SFTP connection timed out')), 15000);
                 }),
-                ...(token ? [new Promise<never>((_, reject) => token.onCancellationRequested(() => reject(new Error('Connection cancelled'))))] : [])
+                ...(cancellationPromise ? [cancellationPromise] : [])
             ]);
         } catch (error) {
             this.status = 'disconnected';
@@ -354,6 +360,7 @@ export default class FtpClientController {
             if (timeout) {
                 clearTimeout(timeout);
             }
+            transportCancellationSubscription?.dispose();
         }
     }
 
@@ -517,18 +524,37 @@ export default class FtpClientController {
         }
     }
 
-    public async uploadLocalFile(localPath: string, remotePath: string): Promise<void> {
+    public async uploadLocalFile(localPath: string, remotePath: string, token?: vscode.CancellationToken): Promise<void> {
         const stats = await fs.promises.stat(localPath);
         if (!stats.isFile()) {
             throw new Error('The selected upload source is not a regular file');
         }
 
         await this.reconnector();
+        if (token?.isCancellationRequested) {
+            throw new Error('Upload cancelled');
+        }
         const safePath = assertRemotePath(remotePath, this.basePath);
-        if (this.connectionType === 'ftp') {
-            await this.ftpClient.uploadFrom(localPath, this.wirePath(safePath));
-        } else {
-            await this.client.put(localPath, this.wirePath(safePath));
+        const cancellationSubscription = token?.onCancellationRequested(() => {
+            void this.disconnect();
+        });
+        let uploadCancellationSubscription: vscode.Disposable | undefined;
+        try {
+            const upload = this.connectionType === 'ftp'
+                ? this.ftpClient.uploadFrom(localPath, this.wirePath(safePath))
+                : this.client.put(localPath, this.wirePath(safePath));
+            const cancellationPromise = token
+                ? new Promise<never>((_, reject) => {
+                    uploadCancellationSubscription = token.onCancellationRequested(() => reject(new Error('Upload cancelled')));
+                })
+                : undefined;
+            await Promise.race([
+                upload,
+                ...(cancellationPromise ? [cancellationPromise] : [])
+            ]);
+        } finally {
+            cancellationSubscription?.dispose();
+            uploadCancellationSubscription?.dispose();
         }
         this.updateStatusConnection();
     }

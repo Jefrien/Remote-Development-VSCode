@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { randomUUID } from 'crypto';
 import { ServerItem } from '../types';
 import FtpClientController from './ftp.controller';
 import ExplorerController from './explorer.controller';
@@ -96,7 +97,7 @@ export default class ServersController {
 
                     // verify if server have id, if not generate a random one
                     if (!server.id) {
-                        server.id = Math.random().toString(36).substring(2, 15);
+                        server.id = randomUUID();
                     }
 
                     await ftpClient.connect(server, token);

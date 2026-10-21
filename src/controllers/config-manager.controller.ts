@@ -209,10 +209,10 @@ export default class ConfigManager {
             title: 'Conexiones', subtitle: 'Administra tus servidores remotos', openJson: 'Abrir en JSON',
             add: 'Nueva conexión', empty: 'Aún no hay conexiones', emptyHint: 'Agrega tu primer servidor para comenzar.',
             selectHint: 'Selecciona una conexión para editarla.', details: 'Detalles de conexión', name: 'Nombre',
-            host: 'Host', username: 'Usuario', password: 'Contraseña', port: 'Puerto', path: 'Ruta remota',
+            host: 'Host', username: 'Usuario', password: 'Contraseña', privateKeyPath: 'Ruta de clave privada', passphrase: 'Passphrase de la clave', port: 'Puerto', path: 'Ruta remota',
             protocol: 'Protocolo', secure: 'Usar FTPS seguro', save: 'Guardar conexión', delete: 'Eliminar',
             saved: 'Configuración guardada', newConnection: 'Nueva conexión', sftpHint: 'SFTP / SSH',
-            ftpHint: 'FTP sobre TLS', passwordHint: 'Se guardará de forma segura en SecretStorage',
+            ftpHint: 'FTP sobre TLS', passwordHint: 'Se guardará de forma segura en SecretStorage', privateKeyHint: 'Opcional; por ejemplo ~/.ssh/id_ed25519', passphraseHint: 'Opcional; se guardará en SecretStorage',
             required: 'Obligatorio', confirmDelete: '¿Eliminar esta conexión?', invalid: 'Completa los campos obligatorios.',
             search: 'Buscar conexiones...', all: 'Todos', connected: 'Conectado', connecting: 'Conectando',
             disconnected: 'Desconectado', connect: 'Conectar', disconnect: 'Desconectar', duplicate: 'Duplicar',
@@ -222,10 +222,10 @@ export default class ConfigManager {
             title: 'Connections', subtitle: 'Manage your remote servers', openJson: 'Open in JSON',
             add: 'New connection', empty: 'No connections yet', emptyHint: 'Add your first server to get started.',
             selectHint: 'Select a connection to edit it.', details: 'Connection details', name: 'Name',
-            host: 'Host', username: 'Username', password: 'Password', port: 'Port', path: 'Remote path',
+            host: 'Host', username: 'Username', password: 'Password', privateKeyPath: 'Private key path', passphrase: 'Key passphrase', port: 'Port', path: 'Remote path',
             protocol: 'Protocol', secure: 'Use secure FTPS', save: 'Save connection', delete: 'Delete',
             saved: 'Configuration saved', newConnection: 'New connection', sftpHint: 'SFTP / SSH',
-            ftpHint: 'FTP over TLS', passwordHint: 'Stored securely in SecretStorage',
+            ftpHint: 'FTP over TLS', passwordHint: 'Stored securely in SecretStorage', privateKeyHint: 'Optional; for example ~/.ssh/id_ed25519', passphraseHint: 'Optional; stored in SecretStorage',
             required: 'Required', confirmDelete: 'Delete this connection?', invalid: 'Complete the required fields.',
             search: 'Search connections...', all: 'All', connected: 'Connected', connecting: 'Connecting',
             disconnected: 'Disconnected', connect: 'Connect', disconnect: 'Disconnect', duplicate: 'Duplicate',
@@ -288,18 +288,26 @@ export default class ConfigManager {
                 } else if (password === undefined || password === '') {
                     await this.context.secrets.delete(this.passwordKey(id));
                 }
+                const passphrase = server.passphrase;
+                if (passphrase && passphrase !== '<stored in VS Code SecretStorage>') {
+                    await this.context.secrets.store(this.passphraseKey(id), passphrase);
+                } else if (passphrase === undefined || passphrase === '') {
+                    await this.context.secrets.delete(this.passphraseKey(id));
+                }
                 previousIds.delete(id);
 
-                const { password: _password, ...withoutPassword } = server;
+                const { password: _password, passphrase: _passphrase, ...withoutSecrets } = server;
                 metadata.servers.push({
-                    ...withoutPassword,
+                    ...withoutSecrets,
                     id,
-                    password: '<stored in VS Code SecretStorage>'
+                    password: '<stored in VS Code SecretStorage>',
+                    ...(passphrase !== undefined ? { passphrase: '<stored in VS Code SecretStorage>' } : {})
                 });
             }
 
             for (const removedId of previousIds) {
                 await this.context.secrets.delete(this.passwordKey(removedId));
+                await this.context.secrets.delete(this.passphraseKey(removedId));
             }
 
             await fs.writeFile(this.configPath, JSON.stringify(metadata, null, 2), {
@@ -326,11 +334,18 @@ export default class ConfigManager {
                 ...server,
                 password: server.password === '<stored in VS Code SecretStorage>'
                     ? await this.context.secrets.get(this.passwordKey(server.id ?? ''))
-                    : server.password
+                    : server.password,
+                passphrase: server.passphrase === '<stored in VS Code SecretStorage>'
+                    ? await this.context.secrets.get(this.passphraseKey(server.id ?? ''))
+                    : server.passphrase
             })));
 
             // Migrate legacy plaintext passwords and assign stable IDs immediately.
-            if (parsed.servers.some(server => server.password !== '<stored in VS Code SecretStorage>' || !server.id)) {
+            if (parsed.servers.some(server =>
+                !server.id
+                || (server.password !== undefined && server.password !== '<stored in VS Code SecretStorage>')
+                || (server.passphrase !== undefined && server.passphrase !== '<stored in VS Code SecretStorage>')
+            )) {
                 await this.saveConfig({ servers });
             }
             return { servers };
@@ -358,6 +373,10 @@ export default class ConfigManager {
 
     private passwordKey(id: string): string {
         return `remote-development.password.${id}`;
+    }
+
+    private passphraseKey(id: string): string {
+        return `remote-development.passphrase.${id}`;
     }
 
     private validateConfig(value: unknown): Config {
@@ -391,6 +410,12 @@ export default class ConfigManager {
             }
             if (candidate.password !== undefined && (typeof candidate.password !== 'string' || candidate.password.length > 4096 || /[\u0000-\u001f\u007f]/.test(candidate.password))) {
                 throw new Error(`Invalid password at index ${index}`);
+            }
+            if (candidate.privateKeyPath !== undefined && (typeof candidate.privateKeyPath !== 'string' || !candidate.privateKeyPath.trim() || candidate.privateKeyPath.length > 4096 || /[\u0000-\u001f\u007f]/.test(candidate.privateKeyPath))) {
+                throw new Error(`Invalid private key path at index ${index}`);
+            }
+            if (candidate.passphrase !== undefined && (typeof candidate.passphrase !== 'string' || candidate.passphrase.length > 4096 || /[\u0000-\u001f\u007f]/.test(candidate.passphrase))) {
+                throw new Error(`Invalid key passphrase at index ${index}`);
             }
             if (candidate.ftpSecure !== undefined && typeof candidate.ftpSecure !== 'boolean') {
                 throw new Error(`Invalid FTP security setting at index ${index}`);

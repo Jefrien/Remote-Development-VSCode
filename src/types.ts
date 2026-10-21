@@ -4,6 +4,8 @@ export interface ServerItem {
     host: string;
     username:string;
     password?: string;
+    privateKeyPath?: string;
+    passphrase?: string;
     port: number;
     path: string;
     type?: 'sftp' | 'ftp';

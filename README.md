@@ -5,6 +5,7 @@ Gestiona archivos remotos desde VS Code, Cursor y otros editores compatibles con
 ## Funciones
 
 - Conexiones SFTP/SSH y FTPS.
+- Autenticación SFTP con contraseña o clave privada SSH.
 - Verificación de huella del servidor SFTP.
 - Explorador remoto de archivos y carpetas.
 - Edición local de archivos remotos y subida de cambios.
@@ -21,6 +22,7 @@ Gestiona archivos remotos desde VS Code, Cursor y otros editores compatibles con
 - VS Code `1.94.0` o posterior, Cursor u otro editor compatible.
 - Un servidor SFTP o FTPS accesible.
 - Credenciales y puerto del servidor.
+- Para autenticación por clave, la clave privada debe existir en el equipo local.
 
 El FTP sin cifrado se rechaza. Para FTP seguro usa FTPS con `"ftpSecure": true`.
 
@@ -80,6 +82,30 @@ Code SecretStorage y deja un marcador en el JSON persistente.
 }
 ~~~
 
+### Ejemplo SFTP con clave privada
+
+~~~
+{
+  "servers": [
+    {
+      "name": "Mi servidor con SSH key",
+      "host": "example.com",
+      "username": "deploy",
+      "privateKeyPath": "~/.ssh/id_ed25519",
+      "passphrase": "mi-passphrase",
+      "port": 22,
+      "path": "/",
+      "type": "sftp"
+    }
+  ]
+}
+~~~
+
+`privateKeyPath` apunta a una clave privada almacenada localmente. La extensión
+lee la clave al conectar y no la copia al archivo de configuración. La
+passphrase, igual que la contraseña, se guarda en VS Code SecretStorage al
+guardar la configuración.
+
 ### Campos
 
 | Campo | Obligatorio | Descripción |
@@ -88,6 +114,8 @@ Code SecretStorage y deja un marcador en el JSON persistente.
 | `host` | Sí | Dominio o IP del servidor. |
 | `username` | Sí | Usuario de conexión. |
 | `password` | No | Contraseña; se guarda en SecretStorage al guardar. |
+| `privateKeyPath` | No | Ruta local de la clave privada SSH; aplica a SFTP. Se puede usar en lugar de `password`. |
+| `passphrase` | No | Passphrase de la clave privada; se guarda en SecretStorage. |
 | `port` | Sí | Normalmente `22` para SFTP o `21` para FTPS. |
 | `path` | Sí | Carpeta remota base. Usa `/` para la raíz. |
 | `type` | No | `sftp` o `ftp`; por defecto es SFTP. |

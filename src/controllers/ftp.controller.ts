@@ -6,6 +6,7 @@ import { ServerItem } from '../types';
 import StatusBarController from './status-bar.controller';
 import ConfigManager from './config-manager.controller';
 import path from 'path';
+import os from 'os';
 import fs from 'fs';
 import { assertRemotePath, getTempDirectory, hostStorageId, pathServerFormat } from '../utils';
 import { Readable, Writable } from 'stream';
@@ -198,10 +199,13 @@ export default class FtpClientController {
 
     public async connect(config: ServerItem, token?: vscode.CancellationToken) {
         const nextConnectionType: 'ftp' | 'sftp' = config.port === 21 || config.type === 'ftp' ? 'ftp' : 'sftp';
-        const { host, port, username, password } = config;
+        const { host, port, username, password, privateKeyPath } = config;
 
-        if (!password) {
-            throw new Error('A password is required. Store it through the configuration editor.');
+        if (nextConnectionType === 'sftp' && !password && !privateKeyPath) {
+            throw new Error('A password or private key is required. Configure one through the connection editor.');
+        }
+        if (nextConnectionType === 'ftp' && !password) {
+            throw new Error('A password is required for FTPS. Store it through the configuration editor.');
         }
         if (nextConnectionType === 'ftp' && config.ftpSecure !== true) {
             throw new Error('Plain FTP is disabled. Set ftpSecure to true and use FTPS.');
@@ -340,7 +344,15 @@ export default class FtpClientController {
                     host: config.host,
                     port: config.port,
                     username: config.username,
-                    password: config.password,
+                    ...(config.password ? { password: config.password } : {}),
+                    ...(config.privateKeyPath ? {
+                        privateKey: await fs.promises.readFile(
+                            config.privateKeyPath.startsWith('~/')
+                                ? path.join(os.homedir(), config.privateKeyPath.slice(2))
+                                : config.privateKeyPath
+                        )
+                    } : {}),
+                    ...(config.passphrase ? { passphrase: config.passphrase } : {}),
                     hostHash: 'sha256',
                     hostVerifier: verifyHostKey,
                     readyTimeout: 10000,

@@ -30,6 +30,8 @@ export default class FtpClientController {
     private context: vscode.ExtensionContext = {} as vscode.ExtensionContext;
     private connectionTime: number = 0;
     private connectionType: 'sftp' | 'ftp' | null = null;
+    private reconnectPromise?: Promise<void>;
+    private outputChannel?: vscode.OutputChannel;
 
     private constructor() {
         this.client = new SFTPClient();
@@ -39,8 +41,8 @@ export default class FtpClientController {
     }
 
     private writeLog(message: string, type: string = 'errors') {
-        // Uncomment for logging
-        // fs.appendFileSync(path.join(this.context.extensionPath, `${type}.log`), message + '\n');
+        const line = `[${new Date().toISOString()}] [${type}] ${message}`;
+        this.outputChannel?.appendLine(line);
     }
 
     public static getInstance(): FtpClientController {
@@ -52,6 +54,8 @@ export default class FtpClientController {
 
     public initContext(_context: vscode.ExtensionContext) {
         this.context = _context;
+        this.outputChannel = vscode.window.createOutputChannel('Remote Development');
+        this.context.subscriptions.push(this.outputChannel);
     }
 
     private registerEvents() {
@@ -81,23 +85,43 @@ export default class FtpClientController {
             this.updateStatusConnection();
         });
 
-        // FTP Events
-        this.ftpClient.ftp.socket?.on('error', (err: any) => {
-            this.status = 'disconnected';
-            this.error = err.message;
+    }
+
+    private registerFtpSocketEvents() {
+        const socket = this.ftpClient.ftp.socket;
+        if (!socket) {
+            return;
+        }
+
+        socket.on('error', (err: Error) => {
+            this.markDisconnected(err);
+        });
+        socket.on('close', () => {
+            if (this.status !== 'disconnected') {
+                this.writeLog('Disconnected from FTP (CLOSE)', 'disconnecteds');
+                this.markDisconnected();
+            }
+        });
+        socket.on('end', () => {
+            if (this.status !== 'disconnected') {
+                this.writeLog('Disconnected from FTP (END)', 'disconnecteds');
+                this.markDisconnected();
+            }
+        });
+    }
+
+    private markDisconnected(error?: Error) {
+        this.status = 'disconnected';
+        this.error = error?.message || this.error || 'Connection lost';
+        if (error) {
             this.writeLog('FTP Error: ' + JSON.stringify({
                 code: this.error,
-                message: err.message,
+                message: error.message,
                 host: this.currentConfig.host,
                 type: this.currentConfig.type
             }));
-            this.updateStatusConnection();
-        });
-        this.ftpClient.ftp.socket?.on('close', () => {
-            this.writeLog('Disconnected from FTP (CLOSE)', 'disconnecteds');
-            this.status = 'disconnected';
-            this.updateStatusConnection();
-        });
+        }
+        this.updateStatusConnection();
     }
 
     public get config() {
@@ -154,6 +178,7 @@ export default class FtpClientController {
                     password,
                     secure: true,
                 });
+                this.registerFtpSocketEvents();
             } else { // sftp
                 await this.connectSftpWithTrust(config);
             }
@@ -221,13 +246,39 @@ export default class FtpClientController {
     }
 
     private async reconnector() {
-        const now = Date.now();
-        const isExpired = now - this.connectionTime > FtpClientController.RECONNECT_THRESHOLD;
-        if (this.status === 'disconnected' || isExpired) {
-            if (this.currentConfig.id) { // Check if a config has been set
-                await this.connect(this.currentConfig);
-            }
+        if (!this.currentConfig.host) {
+            throw new Error('No server is configured');
         }
+
+        let needsReconnect = this.status !== 'connected';
+        if (this.connectionType === 'ftp' && !this.ftpClient.closed && !needsReconnect) {
+            try {
+                await this.ftpClient.send('NOOP');
+            } catch (error: any) {
+                this.markDisconnected(error);
+                needsReconnect = true;
+            }
+        } else if (this.connectionType === 'ftp' && this.ftpClient.closed) {
+            this.markDisconnected();
+            needsReconnect = true;
+        }
+
+        const isExpired = Date.now() - this.connectionTime > FtpClientController.RECONNECT_THRESHOLD;
+        if (isExpired) {
+            needsReconnect = true;
+        }
+
+        if (!needsReconnect) {
+            return;
+        }
+
+        if (!this.reconnectPromise) {
+            this.writeLog(`Reconnecting to ${this.currentConfig.host}:${this.currentConfig.port}`);
+            this.reconnectPromise = this.connect(this.currentConfig).finally(() => {
+                this.reconnectPromise = undefined;
+            });
+        }
+        await this.reconnectPromise;
     }
 
     public async disconnect() {
@@ -378,14 +429,17 @@ export default class FtpClientController {
                         reject(new Error('Upload cancelled'));
                     });
 
-                    try {
+                    const uploadOnce = async () => {
                         await this.reconnector();
                         if (this.connectionType === 'ftp') {
                             this.ftpClient.trackProgress(info => {
                                 progress.report({ increment: info.bytes / 100, message: `${info.bytes / 1024} KB` });
                             });
-                            await this.ftpClient.uploadFrom(localPath, remotePath);
-                            this.ftpClient.trackProgress(); // Deactivate
+                            try {
+                                await this.ftpClient.uploadFrom(localPath, remotePath);
+                            } finally {
+                                this.ftpClient.trackProgress();
+                            }
                         } else {
                             await this.client.put(localPath, remotePath, {
                                 writeStreamOptions: {
@@ -395,11 +449,26 @@ export default class FtpClientController {
                                 }
                             });
                         }
+                    };
+
+                    try {
+                        await uploadOnce();
                         clearTimeout(timeout);
                         StatusBarController.getInstance().updateStatusBarText(`${protocol}: File uploaded successfully`, false);
                         resolve(true);
                     } catch (error: any) {
-                        console.error(error);
+                        if (this.isConnectionError(error)) {
+                            try {
+                                this.markDisconnected(error);
+                                await uploadOnce();
+                                clearTimeout(timeout);
+                                StatusBarController.getInstance().updateStatusBarText(`${protocol}: File uploaded successfully`, false);
+                                resolve(true);
+                                return;
+                            } catch (retryError: any) {
+                                error = retryError;
+                            }
+                        }
                         clearTimeout(timeout);
                         vscode.window.showErrorMessage(`Error uploading file: ${error.message}`);
                         reject(error);
@@ -411,6 +480,13 @@ export default class FtpClientController {
             this.updateStatusConnection();
             throw error;
         }
+    }
+
+    private isConnectionError(error: unknown): boolean {
+        const message = error instanceof Error ? error.message : String(error);
+        return this.status === 'disconnected'
+            || this.ftpClient.closed
+            || /(?:ECONN|EPIPE|socket|connection|timeout|timed out|closed|reset|TLS)/i.test(message);
     }
 
     public async downloadFile(remotePath: string, localPath: string, maxBytes = 50 * 1024 * 1024) {

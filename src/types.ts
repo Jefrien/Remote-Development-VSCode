@@ -7,6 +7,8 @@ export interface ServerItem {
     port: number;
     path: string;
     type?: 'sftp' | 'ftp';
+    ftpSecure?: boolean;
+    hostFingerprint?: string;
 }
 
 export interface FTPNode {

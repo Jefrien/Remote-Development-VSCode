@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import ExplorerController, { FTPItem } from './explorer.controller';
 import FtpClientController from './ftp.controller';
 import path from 'path';
+import { isSafeRemoteName } from '../utils';
 
 export default class DirectoriesController {
 
@@ -38,6 +39,9 @@ export default class DirectoriesController {
             });
 
             if (filename) {
+                if (!isSafeRemoteName(filename)) {
+                    throw new Error('Invalid file name');
+                }
                 const filepath = path.join(item.path, filename);
                 await FtpClientController.getInstance().createFile(filepath);
                 ExplorerController.getInstanceAlt().refresh();
@@ -57,6 +61,9 @@ export default class DirectoriesController {
                 value: ''
             });
             if (foldername) {
+                if (!isSafeRemoteName(foldername)) {
+                    throw new Error('Invalid folder name');
+                }
                 const folderpath = path.join(item.path, foldername);
                 await FtpClientController.getInstance().createFolder(folderpath);
                 ExplorerController.getInstanceAlt().refresh();
@@ -76,6 +83,9 @@ export default class DirectoriesController {
                 value: item.entry.name
             });
             if (foldername) {
+                if (!isSafeRemoteName(foldername)) {
+                    throw new Error('Invalid folder name');
+                }
                 const folderpath = path.join(path.dirname(item.path), foldername);
                 await FtpClientController.getInstance().renameFolder(item.path, folderpath);
                 ExplorerController.getInstanceAlt().refresh();

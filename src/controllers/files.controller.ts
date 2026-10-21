@@ -3,6 +3,7 @@ import FtpClientController from './ftp.controller';
 import ExplorerController, { FTPItem } from './explorer.controller';
 import path from 'path';
 import { Rights } from '../types';
+import { isSafeRemoteName } from '../utils';
 
 /**
  * Handles file-related commands for the Remote Development extension.
@@ -86,6 +87,9 @@ export default class FilesController {
             });
             if (!newName) {
                 return;
+            }
+            if (!isSafeRemoteName(newName)) {
+                throw new Error('Invalid file name');
             }
             const basePath = path.dirname(item.path);
             const newPath = path.join(basePath, newName);

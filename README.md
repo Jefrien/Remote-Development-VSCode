@@ -29,7 +29,10 @@ If you find this extension useful, consider supporting its development:
 
 ## 🔒 Configuration & Security
 
-Server configurations are stored in a **JSON file**. It is your responsibility to keep this file secure.
+Server metadata is stored in a **JSON file** and passwords are stored in VS Code's encrypted
+`SecretStorage`. Use the **Open configuration** command to edit the JSON. Passwords are shown
+as plain text while the editor is open, but are removed from the persisted JSON when it is saved.
+Legacy configurations containing plaintext passwords are migrated automatically when loaded.
 
 ### Example Configuration
 
@@ -40,19 +43,19 @@ Server configurations are stored in a **JSON file**. It is your responsibility t
             "name": "SFTP/SSH Server Example",
             "host": "127.0.0.1",
             "username": "user_sftp",
-            "password": "password_sftp",
             "port": 22,
             "path": "/",
-            "type": "sftp" // Defaults to SFTP if not specified
+            "type": "sftp",
+            "hostFingerprint": "64-character SHA-256 hex fingerprint"
         },
         {
             "name": "FTP Server Example",
             "host": "localhost",
             "username": "user_ftp",
-            "password": "password_ftp",
             "port": 21,
             "path": "/public_html/",
-            "type": "ftp"
+            "type": "ftp",
+            "ftpSecure": true
         }
     ]
 }

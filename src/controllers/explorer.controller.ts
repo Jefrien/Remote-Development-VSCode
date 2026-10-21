@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import { FTPNode } from '../types';
 import FtpClientController from './ftp.controller';
 import path from 'path';
-import { getTempDirectory, pathServerFormat } from '../utils';
+import { getTempDirectory, hostStorageId, isSafeRemoteName, safeLocalRemotePath, pathServerFormat } from '../utils';
 import fs from 'fs';
 
 export class FTPItem extends vscode.TreeItem {
@@ -107,7 +107,9 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
                 let remotePath = Buffer.from(pathServerFormat(middle_path)).toString('base64');                remotePath = path.posix.join(remotePath, item.entry.name);
 
                 const tmpPath = getTempDirectory();
-                const file_path = path.join(tmpPath, 'rd-vscode', sftp.config.host, remotePath);
+                const tmpDir = path.join(tmpPath, 'rd-vscode', hostStorageId(sftp.config.host));
+                await fs.promises.mkdir(tmpDir, { recursive: true, mode: 0o700 });
+                const file_path = safeLocalRemotePath(tmpDir, path.posix.join(middle_path, item.entry.name));
                 const filename = path.basename(item.entry.name);
 
                 vscode.window.showInformationMessage(`Abriendo archivo: ${filename}`);
@@ -126,14 +128,14 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
     public async onOpenResource(item: FTPItem): Promise<void> {
         const sftp = FtpClientController.getInstance();
         const filename = path.basename(item.entry.name);
-        const tmpDir = path.join(getTempDirectory(), 'rd-vscode', sftp.config.host);
+        const tmpDir = path.join(getTempDirectory(), 'rd-vscode', hostStorageId(sftp.config.host));
         const middlePath = item.entry.parent?.path || sftp.basePath;
         const remotePath = path.posix.join(middlePath, item.entry.name);
-        const localPath = path.join(tmpDir, remotePath);
+        const localPath = safeLocalRemotePath(tmpDir, remotePath);
 
         try {
             // Ensure the temporary directory exists
-            await fs.promises.mkdir(tmpDir, { recursive: true });
+            await fs.promises.mkdir(tmpDir, { recursive: true, mode: 0o700 });
 
             await vscode.window.withProgress(
                 {
@@ -149,7 +151,7 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
 
                     // Download the file
                     progress.report({ message: `Downloading ${filename}...` });
-                    await sftp.downloadFile(item.entry.path, localPath);
+                    await sftp.downloadFile(item.entry.path, localPath, 50 * 1024 * 1024);
 
                     // Open the document in VS Code
                     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(localPath));
@@ -237,15 +239,15 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
                 return {
                     ..._item,
                     path: path.join(element.path, _item.name).normalize(),
-                    type: _item.type === 'l' ? 'd' : _item.type,
+                    type: _item.type,
                     remotePath: _item.parent?.remotePath ? _item.parent.remotePath + '/' + _item.name : _item.remotePath
                 };
             });
 
             const sortChildrens = this.sortEntries(results);
 
-            let items = sortChildrens.map(entry => {
-                const collapsibleState = entry.type === 'd' || entry.type === 'l'
+            let items = sortChildrens.filter(entry => isSafeRemoteName(entry.name)).map(entry => {
+                const collapsibleState = entry.type === 'd'
                     ? vscode.TreeItemCollapsibleState.Collapsed
                     : vscode.TreeItemCollapsibleState.None;
                 entry.parent = element.entry; // Establecer el padre

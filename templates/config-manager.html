@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="__LANG__">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'none'; style-src __CSP_SOURCE__; script-src 'nonce-__NONCE__';">
+  <link rel="stylesheet" href="__STYLE_URI__">
+  <title>__TITLE__</title>
+</head>
+
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Remote Development</p>
+        <h1>__TITLE__</h1>
+        <p class="subtitle">__SUBTITLE__</p>
+      </div>
+      <div class="toolbar">
+        <button class="secondary" id="open-json">__OPEN_JSON__</button>
+        <button id="add">+ __ADD__</button>
+      </div>
+    </header>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="side-heading"><span>__TITLE__</span><span class="count" id="count">0</span></div>
+        <div class="list-tools">
+          <input id="search" type="search" placeholder="__SEARCH__">
+          <select id="filter">
+            <option value="all">__ALL__</option>
+            <option value="sftp">SFTP</option>
+            <option value="ftp">FTPS</option>
+          </select>
+        </div>
+        <div class="server-list" id="server-list"></div>
+      </aside>
+      <section class="editor" id="editor">
+        <div class="empty-editor"><strong>__SELECT_HINT__</strong><span>__EMPTY_HINT__</span></div>
+      </section>
+    </div>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+  </main>
+  <script nonce="__NONCE__">window.remoteDevelopmentLabels = __LABELS__;</script>
+  <script nonce="__NONCE__" src="__SCRIPT_URI__"></script>
+</body>
+
+</html>

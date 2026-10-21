@@ -31,11 +31,19 @@ export default class LocalizationManager {
         this.language = saved === 'en' || saved === 'es'
             ? saved
             : (vscode.env.language.toLowerCase().startsWith('es') ? 'es' : 'en');
-        await this.loadTranslations();
         context.subscriptions.push(vscode.commands.registerCommand(
             'remote-development.change-language',
             () => this.changeLanguage()
         ));
+        try {
+            await this.loadTranslations();
+        } catch (error) {
+            // A missing/corrupt locale must not prevent the rest of the
+            // extension from registering its commands.
+            this.english = {};
+            this.translations = {};
+            console.error('Unable to load extension translations:', error);
+        }
     }
 
     public getLanguage(): SupportedLanguage {
@@ -52,7 +60,12 @@ export default class LocalizationManager {
     public async setLanguage(language: SupportedLanguage): Promise<void> {
         this.language = language;
         await this.context?.globalState.update('remote-development.language', language);
-        await this.loadTranslations();
+        try {
+            await this.loadTranslations();
+        } catch (error) {
+            console.error(`Unable to load ${language} translations:`, error);
+            throw new Error('Unable to change the extension language');
+        }
     }
 
     private async loadTranslations(): Promise<void> {

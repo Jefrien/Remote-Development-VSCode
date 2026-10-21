@@ -25,6 +25,9 @@ export class FTPItem extends vscode.TreeItem {
         // setup icon
         if (entry.type === 'd') {
             this.iconPath = new vscode.ThemeIcon('folder');
+        } else if (entry.type === 'l') {
+            this.iconPath = new vscode.ThemeIcon('file-symlink-file');
+            this.resourceUri = vscode.Uri.file(entry.name);
         } else {
             this.iconPath = new vscode.ThemeIcon('file');
             // Usar el icono de la extensión del archivo
@@ -61,6 +64,16 @@ export class FTPItem extends vscode.TreeItem {
         return `${size.toFixed(1)} ${units[unitIndex]}`;
     }
 
+}
+
+function normalizeEntryType(entry: FTPNode): string {
+    // Some SFTP servers report a symlink to a directory as type "d".
+    // The first character of longname is the POSIX file type and is more
+    // reliable for distinguishing a link from its target.
+    if (entry.type === 'l' || entry.longname?.startsWith('l')) {
+        return 'l';
+    }
+    return entry.type;
 }
 
 export default class ExplorerController implements vscode.TreeDataProvider<FTPItem>, vscode.TextDocumentContentProvider {
@@ -239,7 +252,7 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
                 return {
                     ..._item,
                     path: path.join(element.path, _item.name).normalize(),
-                    type: _item.type,
+                    type: normalizeEntryType(_item),
                     remotePath: _item.parent?.remotePath ? _item.parent.remotePath + '/' + _item.name : _item.remotePath
                 };
             });

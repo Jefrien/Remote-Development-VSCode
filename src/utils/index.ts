@@ -36,8 +36,13 @@ export function assertRemotePath(requestedPath: string, basePath: string = '/') 
         throw new Error('Remote path traversal is not allowed');
     }
     const root = path.posix.resolve('/', normalizedBase);
-    const candidate = path.posix.resolve('/', normalizedRequested);
-    if (candidate !== root && !candidate.startsWith(`${root}/`)) {
+    const candidate = normalizedRequested === normalizedBase
+        ? root
+        : normalizedRequested.startsWith('/')
+        ? path.posix.resolve('/', normalizedRequested)
+        : path.posix.resolve(root, normalizedRequested);
+    const rootPrefix = root === '/' ? '/' : `${root}/`;
+    if (candidate !== root && !candidate.startsWith(rootPrefix)) {
         throw new Error('Remote path escapes the configured base directory');
     }
     return candidate;

@@ -128,8 +128,11 @@ export default class FtpClientController {
         return this.currentConfig;
     }
 
-    public setPath(path: string) {
-        this.basePath = path;
+    public setPath(remotePath: string) {
+        const normalized = remotePath.replace(/\\/g, '/');
+        this.basePath = normalized.startsWith('/')
+            ? path.posix.resolve('/', normalized)
+            : path.posix.resolve('/', `/${normalized}`);
     }
 
     private updateStatusConnection() {
@@ -151,7 +154,7 @@ export default class FtpClientController {
 
     public async connect(config: ServerItem) {
         this.currentConfig = config;
-        this.basePath = config.path || '/';
+        this.setPath(config.path || '/');
         this.connectionType = config.port === 21 || config.type === 'ftp' ? 'ftp' : 'sftp';
         this.error = '';
         const { host, port, username, password } = config;
@@ -171,13 +174,16 @@ export default class FtpClientController {
             this.updateStatusConnection();
 
             if (this.connectionType === 'ftp') {
-                await this.ftpClient.access({
-                    host,
-                    port,
-                    user: username,
-                    password,
-                    secure: true,
-                });
+                await Promise.race([
+                    this.ftpClient.access({
+                        host,
+                        port,
+                        user: username,
+                        password,
+                        secure: true,
+                    }),
+                    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('FTP connection timed out')), 15000))
+                ]);
                 this.registerFtpSocketEvents();
             } else { // sftp
                 await this.connectSftpWithTrust(config);
@@ -197,26 +203,33 @@ export default class FtpClientController {
         let observedFingerprint: string | undefined;
         const attempt = async (trustedFingerprint?: string) => {
             observedFingerprint = undefined;
-            await this.client.connect({
-                host: config.host,
-                port: config.port,
-                username: config.username,
-                password: config.password,
-                hostHash: 'sha256',
-                hostVerifier: (fingerprint: string) => {
-                    observedFingerprint = fingerprint;
-                    return Boolean(trustedFingerprint) && fingerprint === trustedFingerprint;
-                },
-                readyTimeout: 10000,
-                retries: 2,
-            });
+            await Promise.race([
+                this.client.connect({
+                    host: config.host,
+                    port: config.port,
+                    username: config.username,
+                    password: config.password,
+                    hostHash: 'sha256',
+                    hostVerifier: (fingerprint: string) => {
+                        const received = fingerprint.trim().toLowerCase();
+                        const expected = trustedFingerprint?.trim().toLowerCase();
+                        observedFingerprint = received;
+                        this.writeLog(`SFTP host key received; match=${Boolean(expected && received === expected)}`);
+                        return Boolean(expected && received === expected);
+                    },
+                    readyTimeout: 10000,
+                    retries: 2,
+                }),
+                new Promise<never>((_, reject) => setTimeout(() => reject(new Error('SFTP connection timed out')), 15000))
+            ]);
         };
 
         try {
             await attempt(config.hostFingerprint);
             return;
         } catch (error: any) {
-            await this.disconnect();
+            this.status = 'disconnected';
+            await this.closeSftpSafely();
             if (!observedFingerprint) {
                 throw error;
             }
@@ -241,7 +254,22 @@ export default class FtpClientController {
             if (action === 'Trust always') {
                 await ConfigManager.getInstance(this.context).saveServerFingerprint(config, observedFingerprint);
             }
+            // ssh2-sftp-client instances that rejected a host key may not be
+            // reusable for the next handshake.
+            this.client = new SFTPClient();
+            this.registerEvents();
             await attempt(observedFingerprint);
+        }
+    }
+
+    private async closeSftpSafely(): Promise<void> {
+        try {
+            await Promise.race([
+                this.client.end(),
+                new Promise<void>(resolve => setTimeout(resolve, 2000))
+            ]);
+        } catch {
+            // The SSH client may already be closed after a failed handshake.
         }
     }
 

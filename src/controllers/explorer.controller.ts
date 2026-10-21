@@ -193,7 +193,7 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
         const config = FtpClientController.getInstance().config;
         this.data = [{
             name: config.name,
-            path: config.path,
+            path: FtpClientController.getInstance().basePath,
             type: 'd',
             size: 0,
             modifyTime: 0,

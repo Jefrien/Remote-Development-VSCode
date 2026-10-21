@@ -5,6 +5,7 @@ import { FTPNode } from '../types';
 import FtpClientController from './ftp.controller';
 import path from 'path';
 import { getTempDirectory, hostStorageId, isSafeRemoteName, safeLocalRemotePath, pathServerFormat } from '../utils';
+import LocalizationManager from './localization.controller';
 import fs from 'fs';
 
 export class FTPItem extends vscode.TreeItem {
@@ -40,7 +41,7 @@ export class FTPItem extends vscode.TreeItem {
         this.contextValue = entry.type === 'd' ? 'directory' : 'file';
         this.command = entry.type === 'd' ? void 0 : {
             command: 'remote-development.open-resource',
-            title: 'Abrir',
+            title: LocalizationManager.getInstance().t('Open'),
             arguments: [this]
         };
 
@@ -48,7 +49,8 @@ export class FTPItem extends vscode.TreeItem {
 
     getTooltip() {
         const date = new Date(this.entry.modifyTime);
-        return `${this.entry.name}\nTamaño: ${this.formatSize(this.entry.size)}\nModificado: ${date.toLocaleString()}\nPermisos: ${this.entry.rights.user}${this.entry.rights.group}${this.entry.rights.other}`;
+        const i18n = LocalizationManager.getInstance();
+        return `${this.entry.name}\n${i18n.t('Size')}: ${this.formatSize(this.entry.size)}\n${i18n.t('Modified')}: ${date.toLocaleString()}\n${i18n.t('Permissions')}: ${this.entry.rights.user}${this.entry.rights.group}${this.entry.rights.other}`;
     }
 
     formatSize(bytes: number) {
@@ -110,7 +112,7 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
         try {
             vscode.window.withProgress({
                 location: vscode.ProgressLocation.Window,
-                title: "Abriendo Archivo",
+            title: LocalizationManager.getInstance().t('Opening file: {0}', item.entry.name),
                 cancellable: true
             }, async (progress, token) => {
                 const sftp = FtpClientController.getInstance();
@@ -125,7 +127,7 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
                 const file_path = safeLocalRemotePath(tmpDir, path.posix.join(middle_path, item.entry.name));
                 const filename = path.basename(item.entry.name);
 
-                vscode.window.showInformationMessage(`Abriendo archivo: ${filename}`);
+                vscode.window.showInformationMessage(LocalizationManager.getInstance().t('Opening file: {0}', filename));
 
                 await sftp.downloadFile(item.entry.path, file_path);
                 const save_path = vscode.Uri.file(file_path);
@@ -134,7 +136,7 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
                 return true;
             });
         } catch (err: any) {
-            vscode.window.showErrorMessage('Error opening file: ' + err.message);
+            vscode.window.showErrorMessage(LocalizationManager.getInstance().t('Error opening file: {0}', err.message));
         }
     }
 
@@ -153,7 +155,7 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
             await vscode.window.withProgress(
                 {
                     location: vscode.ProgressLocation.Window,
-                    title: `Opening file: ${filename}`,
+                    title: LocalizationManager.getInstance().t('Opening file: {0}', filename),
                     cancellable: true,
                 },
                 async (progress, token) => {
@@ -163,7 +165,7 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
                     });
 
                     // Download the file
-                    progress.report({ message: `Downloading ${filename}...` });
+                    progress.report({ message: LocalizationManager.getInstance().t('Downloading {0}...', filename) });
                     await sftp.downloadFile(item.entry.path, localPath, 50 * 1024 * 1024);
 
                     // Open the document in VS Code
@@ -177,7 +179,7 @@ export default class ExplorerController implements vscode.TreeDataProvider<FTPIt
                 fs.unlinkSync(localPath);
             }
             vscode.window.showErrorMessage(
-                `Error opening file: ${err.message}`
+                LocalizationManager.getInstance().t('Error opening file: {0}', err.message)
             );
         }
     }

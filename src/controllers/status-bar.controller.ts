@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import LocalizationManager from './localization.controller';
 
 /**
  * Controls the status bar item for the Remote Development extension.
@@ -11,7 +12,8 @@ export default class StatusBarController {
     private constructor() {
         // Initialize the status bar item aligned to the right
         this.statusBarInfo = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right);
-        this.statusBarInfo.text = 'RD: Disconnected';
+        const i18n = LocalizationManager.getInstance();
+        this.statusBarInfo.text = i18n.t('RD: {0}', i18n.t('Disconnected'));
     }
 
     /**

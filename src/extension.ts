@@ -5,7 +5,9 @@ import FtpClientController from './controllers/ftp.controller';
 import FilesController from './controllers/files.controller';
 import DirectoriesController from './controllers/directories.controller';
 import ConfigManager from './controllers/config-manager.controller';
+import LocalizationManager from './controllers/localization.controller';
 export async function activate(context: vscode.ExtensionContext) {
+	await LocalizationManager.getInstance(context).init(context);
 
 	// config manager
 	ConfigManager.getInstance(context);

@@ -8,6 +8,7 @@ import path from 'path';
 import fs from 'fs';
 import { assertRemotePath, getTempDirectory, hostStorageId, pathServerFormat } from '../utils';
 import { Readable, Writable } from 'stream';
+import LocalizationManager from './localization.controller';
 
 export class TimeoutError extends Error {
     constructor(public message: string, public timeout: number = 10000) {
@@ -144,16 +145,17 @@ export default class FtpClientController {
 
     private updateStatusConnection() {
         const protocol = (this.currentConfig.type || 'sftp').toUpperCase();
+        const i18n = LocalizationManager.getInstance();
         let message: string;
         switch (this.status) {
             case 'connected':
-                message = `${protocol}: Connected`;
+                message = `${protocol}: ${i18n.t('Connected')}`;
                 break;
             case 'connecting':
                 message = `${protocol}: Connecting`;
                 break;
             case 'disconnected':
-                message = `${protocol}: Disconnected`;
+                message = `${protocol}: ${i18n.t('Disconnected')}`;
                 break;
         }
         StatusBarController.getInstance().updateStatusBarText(message, this.status === 'connecting');
@@ -364,7 +366,7 @@ export default class FtpClientController {
     public async listDirectory(_path: string = '/'): Promise<SFTPClient.FileInfo[]> {
         try {
             const protocol = (this.currentConfig.type || 'sftp').toUpperCase();
-            StatusBarController.getInstance().updateStatusBarText(`${protocol}: Listing directory`, true);
+            StatusBarController.getInstance().updateStatusBarText(`${protocol}: ${LocalizationManager.getInstance().t('Listing directory')}`, true);
             await this.reconnector();
 
             const safePath = assertRemotePath(_path, this.basePath);
@@ -382,7 +384,7 @@ export default class FtpClientController {
             this.updateStatusConnection();
             return files as SFTPClient.FileInfo[];
         } catch (error: any) {
-            vscode.window.showErrorMessage(`Error listing directory: ${error.message}`);
+            vscode.window.showErrorMessage(LocalizationManager.getInstance().t('Error listing directory: {0}', error.message));
             await this.reconnector();
             throw error;
         }
@@ -391,7 +393,7 @@ export default class FtpClientController {
     public async reloadPath(_path: string) {
         try {
             const protocol = (this.currentConfig.type || 'sftp').toUpperCase();
-            StatusBarController.getInstance().updateStatusBarText(`${protocol}: Reloading directory`, true);
+            StatusBarController.getInstance().updateStatusBarText(`${protocol}: ${LocalizationManager.getInstance().t('Reloading directory')}`, true);
             await this.reconnector();
             const safePath = assertRemotePath(_path, this.basePath);
             if (this.connectionType === 'ftp') {
@@ -401,7 +403,7 @@ export default class FtpClientController {
             }
             this.updateStatusConnection();
         } catch (error: any) {
-            vscode.window.showErrorMessage(`Error reloading directory: ${error.message}`);
+            vscode.window.showErrorMessage(LocalizationManager.getInstance().t('Error reloading directory: {0}', error.message));
             await this.reconnector();
             throw error;
         }
@@ -410,7 +412,7 @@ export default class FtpClientController {
     public async createFile(_path: string, data: string | Buffer = Buffer.from('')) {
         try {
             const protocol = (this.currentConfig.type || 'sftp').toUpperCase();
-            StatusBarController.getInstance().updateStatusBarText(`${protocol}: Creating file`, true);
+            StatusBarController.getInstance().updateStatusBarText(`${protocol}: ${LocalizationManager.getInstance().t('Creating file')}`, true);
             await this.reconnector();
             const safePath = assertRemotePath(_path, this.basePath);
             const readable = Readable.from(data);
@@ -427,7 +429,7 @@ export default class FtpClientController {
             }
             this.updateStatusConnection();
         } catch (error: any) {
-            vscode.window.showErrorMessage(`Error creating file: ${error.message}`);
+            vscode.window.showErrorMessage(LocalizationManager.getInstance().t('Error creating file: {0}', error.message));
             await this.reconnector();
             throw error;
         }
@@ -456,7 +458,7 @@ export default class FtpClientController {
                 throw new Error('No active editor');
             }
             const protocol = (this.currentConfig.type || 'sftp').toUpperCase();
-            StatusBarController.getInstance().updateStatusBarText(`${protocol}: Uploading file`, true);
+            StatusBarController.getInstance().updateStatusBarText(`${protocol}: ${LocalizationManager.getInstance().t('Uploading file')}`, true);
             await editor.document.save();
             const localPath = editor.document.fileName;
 
@@ -470,7 +472,7 @@ export default class FtpClientController {
 
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
-                title: `Uploading file: ${filename}`,
+                title: LocalizationManager.getInstance().t('Uploading file: {0}', filename),
                 cancellable: true,
             }, async (progress, token) => {
                 return new Promise(async (resolve, reject) => {
@@ -523,7 +525,7 @@ export default class FtpClientController {
                         void cancelUpload(new Error('Upload timed out'));
                     }, 10000);
                     cancellationSubscription = token.onCancellationRequested(() => {
-                        vscode.window.showInformationMessage('Upload cancelled');
+                        vscode.window.showInformationMessage(LocalizationManager.getInstance().t('Upload cancelled'));
                         void cancelUpload(new Error('Upload cancelled'));
                     });
 
@@ -560,13 +562,13 @@ export default class FtpClientController {
                         if (cancelled) {
                             return;
                         }
-                        vscode.window.showErrorMessage(`Error uploading file: ${error.message}`);
+                        vscode.window.showErrorMessage(LocalizationManager.getInstance().t('Error uploading file: {0}', error.message));
                         reject(error);
                     }
                 });
             });
         } catch (error: any) {
-            vscode.window.showErrorMessage(`Error uploading file: ${error.message}`);
+            vscode.window.showErrorMessage(LocalizationManager.getInstance().t('Error uploading file: {0}', error.message));
             this.updateStatusConnection();
             throw error;
         }
@@ -612,7 +614,7 @@ export default class FtpClientController {
                     fs.unlinkSync(localPath);
                 }
             } catch { /* best effort cleanup */ }
-            vscode.window.showErrorMessage(`Error downloading file: ${error.message}`);
+            vscode.window.showErrorMessage(LocalizationManager.getInstance().t('Error downloading file: {0}', error.message));
             this.updateStatusConnection();
             throw error;
         }
@@ -621,7 +623,7 @@ export default class FtpClientController {
     public async deleteFile(remotePath: string) {
         try {
             const protocol = (this.currentConfig.type || 'sftp').toUpperCase();
-            StatusBarController.getInstance().updateStatusBarText(`${protocol}: Deleting file`, true);
+            StatusBarController.getInstance().updateStatusBarText(`${protocol}: ${LocalizationManager.getInstance().t('Deleting file')}`, true);
             await this.reconnector();
             const safePath = assertRemotePath(remotePath, this.basePath);
             if (this.connectionType === 'ftp') {
@@ -630,7 +632,7 @@ export default class FtpClientController {
                 await this.client.delete(this.wirePath(safePath));
             }
         } catch (error: any) {
-            vscode.window.showErrorMessage(`Error deleting file: ${error.message}`);
+            vscode.window.showErrorMessage(LocalizationManager.getInstance().t('Error deleting file: {0}', error.message));
             throw error;
         } finally {
             this.updateStatusConnection();
@@ -640,7 +642,7 @@ export default class FtpClientController {
     public async renameFile(remotePath: string, newName: string) {
         try {
             const protocol = (this.currentConfig.type || 'sftp').toUpperCase();
-            StatusBarController.getInstance().updateStatusBarText(`${protocol}: Renaming file`, true);
+            StatusBarController.getInstance().updateStatusBarText(`${protocol}: ${LocalizationManager.getInstance().t('Renaming file')}`, true);
             await this.reconnector();
             const safePath = assertRemotePath(remotePath, this.basePath);
             const safeNewPath = assertRemotePath(newName, this.basePath);
@@ -650,7 +652,7 @@ export default class FtpClientController {
                 await this.client.rename(this.wirePath(safePath), this.wirePath(safeNewPath));
             }
         } catch (error: any) {
-            vscode.window.showErrorMessage(`Error renaming file: ${error.message}`);
+            vscode.window.showErrorMessage(LocalizationManager.getInstance().t('Error renaming file: {0}', error.message));
             throw error;
         } finally {
             this.updateStatusConnection();
@@ -660,7 +662,7 @@ export default class FtpClientController {
     public async changePermissions(remotePath: string, permissions: number) {
         try {
             const protocol = (this.currentConfig.type || 'sftp').toUpperCase();
-            StatusBarController.getInstance().updateStatusBarText(`${protocol}: Changing permissions`, true);
+            StatusBarController.getInstance().updateStatusBarText(`${protocol}: ${LocalizationManager.getInstance().t('Changing permissions')}`, true);
             await this.reconnector();
             if (!Number.isInteger(permissions) || permissions < 0 || permissions > 0o7777) {
                 throw new Error('Invalid file permissions');
@@ -672,7 +674,7 @@ export default class FtpClientController {
                 await this.client.chmod(this.wirePath(safePath), permissions);
             }
         } catch (error: any) {
-            vscode.window.showErrorMessage(`Error changing permissions: ${error.message}`);
+            vscode.window.showErrorMessage(LocalizationManager.getInstance().t('Error changing permissions: {0}', error.message));
             throw error;
         } finally {
             this.updateStatusConnection();
@@ -682,7 +684,7 @@ export default class FtpClientController {
     public async createFolder(_path: string) {
         try {
             const protocol = (this.currentConfig.type || 'sftp').toUpperCase();
-            StatusBarController.getInstance().updateStatusBarText(`${protocol}: Creating folder`, true);
+            StatusBarController.getInstance().updateStatusBarText(`${protocol}: ${LocalizationManager.getInstance().t('Creating folder')}`, true);
             await this.reconnector();
             const safePath = assertRemotePath(_path, this.basePath);
             if (this.connectionType === 'ftp') {
@@ -692,7 +694,7 @@ export default class FtpClientController {
             }
         } catch (error: any) {
             console.error(error);
-            vscode.window.showErrorMessage(`Error creating folder: ${error.message}`);
+            vscode.window.showErrorMessage(LocalizationManager.getInstance().t('Error creating folder: {0}', error.message));
             throw error;
         } finally {
             this.updateStatusConnection();
@@ -702,7 +704,7 @@ export default class FtpClientController {
     public async renameFolder(remotePath: string, newName: string) {
         try {
             const protocol = (this.currentConfig.type || 'sftp').toUpperCase();
-            StatusBarController.getInstance().updateStatusBarText(`${protocol}: Renaming folder`, true);
+            StatusBarController.getInstance().updateStatusBarText(`${protocol}: ${LocalizationManager.getInstance().t('Renaming folder')}`, true);
             await this.reconnector();
             const safePath = assertRemotePath(remotePath, this.basePath);
             const safeNewPath = assertRemotePath(newName, this.basePath);
@@ -712,7 +714,7 @@ export default class FtpClientController {
                 await this.client.rename(this.wirePath(safePath), this.wirePath(safeNewPath));
             }
         } catch (error: any) {
-            vscode.window.showErrorMessage(`Error renaming folder: ${error.message}`);
+            vscode.window.showErrorMessage(LocalizationManager.getInstance().t('Error renaming folder: {0}', error.message));
             throw error;
         } finally {
             this.updateStatusConnection();
@@ -722,7 +724,7 @@ export default class FtpClientController {
     public async deleteFolder(remotePath: string) {
         try {
             const protocol = (this.currentConfig.type || 'sftp').toUpperCase();
-            StatusBarController.getInstance().updateStatusBarText(`${protocol}: Deleting folder`, true);
+            StatusBarController.getInstance().updateStatusBarText(`${protocol}: ${LocalizationManager.getInstance().t('Deleting folder')}`, true);
             await this.reconnector();
             const safePath = assertRemotePath(remotePath, this.basePath);
             if (this.connectionType === 'ftp') {
@@ -731,7 +733,7 @@ export default class FtpClientController {
                 await this.client.rmdir(this.wirePath(safePath), true);
             }
         } catch (error: any) {
-            vscode.window.showErrorMessage(`Error deleting folder: ${error.message}`);
+            vscode.window.showErrorMessage(LocalizationManager.getInstance().t('Error deleting folder: {0}', error.message));
             throw error;
         } finally {
             this.updateStatusConnection();

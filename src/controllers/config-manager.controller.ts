@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { randomUUID } from 'crypto';
 import { ServerItem } from '../types';
+import LocalizationManager from './localization.controller';
 
 interface Config {
     servers: ServerItem[];
@@ -36,7 +37,7 @@ export default class ConfigManager {
                 try {
                     await this.openInEditor();
                 } catch (error) {
-                    vscode.window.showErrorMessage('Error opening configuration file');
+                    vscode.window.showErrorMessage(LocalizationManager.getInstance().t('Error opening configuration file'));
                     console.error('Error opening config:', error);
                 }
             })

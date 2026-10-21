@@ -3,6 +3,7 @@ import { ServerItem } from '../types';
 import FtpClientController from './ftp.controller';
 import ExplorerController from './explorer.controller';
 import ConfigManager from './config-manager.controller';
+import LocalizationManager from './localization.controller';
 
 export default class ServersController {
     private static instance: ServersController;
@@ -18,12 +19,12 @@ export default class ServersController {
                 await vscode.window.withProgress(
                     {
                         location: vscode.ProgressLocation.Notification,
-                        title: vscode.l10n.t('Loading Servers'),
+                        title: LocalizationManager.getInstance().t('Loading Servers'),
                         cancellable: true,
                     },
                     async (progress, token) => {
                         token.onCancellationRequested(() => {
-                            vscode.window.showInformationMessage(vscode.l10n.t('Server loading cancelled'));
+                            vscode.window.showInformationMessage(LocalizationManager.getInstance().t('Server loading cancelled'));
                         });
                         await this.loadServers();
                         this.showServersSelector();
@@ -49,7 +50,7 @@ export default class ServersController {
             this.config = await ConfigManager.getInstance(this.context).loadConfig();
         } catch (error: any) {
             vscode.window.showErrorMessage(
-                vscode.l10n.t('Error loading server configuration: {0}. Check the console for details.', error.message)
+                LocalizationManager.getInstance().t('Error loading server configuration: {0}. Check the console for details.', error.message)
             );
             throw error; // Re-throw to allow further handling if needed
         }
@@ -63,12 +64,12 @@ export default class ServersController {
         return vscode.window.withProgress(
             {
                 location: vscode.ProgressLocation.Notification,
-                title: vscode.l10n.t('Connecting to {0}', server.name),
+                title: LocalizationManager.getInstance().t('Connecting to {0}', server.name),
                 cancellable: true,
             },
             async (progress, token) => {
                 token.onCancellationRequested(() => {
-                    vscode.window.showInformationMessage(vscode.l10n.t('Connection cancelled'));
+                    vscode.window.showInformationMessage(LocalizationManager.getInstance().t('Connection cancelled'));
                 });
 
                 try {
@@ -91,7 +92,7 @@ export default class ServersController {
                     return true;
                 } catch (error: any) {
                     vscode.window.showErrorMessage(
-                        vscode.l10n.t('Error connecting to server: {0}', error.message)
+                        LocalizationManager.getInstance().t('Error connecting to server: {0}', error.message)
                     );
                     return false;
                 }
@@ -112,7 +113,7 @@ export default class ServersController {
         }));
 
         return vscode.window.showQuickPick(quickPickItems, {
-            placeHolder: vscode.l10n.t('Select a server'),
+            placeHolder: LocalizationManager.getInstance().t('Select a server'),
             matchOnDescription: true,
             matchOnDetail: true,
         }).then((selection) => {

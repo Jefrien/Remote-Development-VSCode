@@ -38,5 +38,34 @@
   "Select a file to upload": "Select a file to upload",
   "Uploading file...": "Uploading file...",
   "Upload cancelled": "Upload cancelled",
-  "File uploaded: {0}": "File uploaded: {0}"
+  "File uploaded: {0}": "File uploaded: {0}",
+  "Select extension language": "Select extension language",
+  "Current language": "Current language",
+  "Language changed to {0}": "Language changed to {0}",
+  "Reload the window to apply the new language everywhere.": "Reload the window to apply the new language everywhere.",
+  "Error opening configuration file": "Error opening configuration file",
+  "Opening file: {0}": "Opening file: {0}",
+  "Downloading {0}...": "Downloading {0}...",
+  "Error opening file: {0}": "Error opening file: {0}",
+  "Size": "Size",
+  "Modified": "Modified",
+  "Permissions": "Permissions",
+  "Open": "Open",
+  "RD: {0}": "RD: {0}",
+  "Connected": "Connected",
+  "Disconnected": "Disconnected",
+  "Listing directory": "Listing directory",
+  "Reloading directory": "Reloading directory",
+  "Creating file": "Creating file",
+  "Uploading file": "Uploading file",
+  "Deleting file": "Deleting file",
+  "Renaming file": "Renaming file",
+  "Changing permissions": "Changing permissions",
+  "Creating folder": "Creating folder",
+  "Renaming folder": "Renaming folder",
+  "Deleting folder": "Deleting folder"
+  ,"Error listing directory: {0}": "Error listing directory: {0}"
+  ,"Error reloading directory: {0}": "Error reloading directory: {0}"
+  ,"Error downloading file: {0}": "Error downloading file: {0}"
+  ,"Uploading file: {0}": "Uploading file: {0}"
 }

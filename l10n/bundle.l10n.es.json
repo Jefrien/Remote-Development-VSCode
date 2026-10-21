@@ -38,5 +38,34 @@
   "Select a file to upload": "Seleccione un archivo para cargar",
   "Uploading file...": "Cargando archivo...",
   "Upload cancelled": "Carga cancelada",
-  "File uploaded: {0}": "Archivo cargado: {0}"
+  "File uploaded: {0}": "Archivo cargado: {0}",
+  "Select extension language": "Seleccionar idioma de la extensión",
+  "Current language": "Idioma actual",
+  "Language changed to {0}": "Idioma cambiado a {0}",
+  "Reload the window to apply the new language everywhere.": "Recarga la ventana para aplicar el nuevo idioma en todas partes.",
+  "Error opening configuration file": "Error al abrir el archivo de configuración",
+  "Opening file: {0}": "Abriendo archivo: {0}",
+  "Downloading {0}...": "Descargando {0}...",
+  "Error opening file: {0}": "Error al abrir el archivo: {0}",
+  "Size": "Tamaño",
+  "Modified": "Modificado",
+  "Permissions": "Permisos",
+  "Open": "Abrir",
+  "RD: {0}": "RD: {0}",
+  "Connected": "Conectado",
+  "Disconnected": "Desconectado",
+  "Listing directory": "Listando directorio",
+  "Reloading directory": "Recargando directorio",
+  "Creating file": "Creando archivo",
+  "Uploading file": "Subiendo archivo",
+  "Deleting file": "Eliminando archivo",
+  "Renaming file": "Renombrando archivo",
+  "Changing permissions": "Cambiando permisos",
+  "Creating folder": "Creando carpeta",
+  "Renaming folder": "Renombrando carpeta",
+  "Deleting folder": "Eliminando carpeta"
+  ,"Error listing directory: {0}": "Error al listar el directorio: {0}"
+  ,"Error reloading directory: {0}": "Error al recargar el directorio: {0}"
+  ,"Error downloading file: {0}": "Error al descargar el archivo: {0}"
+  ,"Uploading file: {0}": "Subiendo archivo: {0}"
 }

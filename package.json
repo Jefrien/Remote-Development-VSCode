@@ -31,7 +31,7 @@
   "categories": [
     "Other"
   ],
-  "main": "./out/extension.js",
+  "main": "./out/extension.bundle.js",
   "l10n": "./l10n",
   "contributes": {
     "keybindings": [
@@ -205,8 +205,9 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run compile && npm run bundle",
     "compile": "tsc -p ./",
+    "bundle": "node scripts/bundle-extension.mjs",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
@@ -224,6 +225,7 @@
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.2.2",
+    "esbuild": "^0.28.2",
     "eslint": "^9.19.0",
     "typescript": "^5.7.3"
   },

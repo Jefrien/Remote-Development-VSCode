@@ -33,6 +33,7 @@ function normalizeFingerprint(fingerprint: string): string {
 
 export default class FtpClientController {
     private static RECONNECT_THRESHOLD = 10 * 60 * 1000; // 10 minutes
+    private static UPLOAD_INACTIVITY_TIMEOUT = 2 * 60 * 1000;
     private static instance: FtpClientController;
     private client: SFTPClient;
     private ftpClient: Client;
@@ -183,23 +184,24 @@ export default class FtpClientController {
     }
 
     public async connect(config: ServerItem) {
-        this.currentConfig = config;
-        this.setPath(config.path || '/');
-        this.connectionType = config.port === 21 || config.type === 'ftp' ? 'ftp' : 'sftp';
-        this.error = '';
+        const nextConnectionType: 'ftp' | 'sftp' = config.port === 21 || config.type === 'ftp' ? 'ftp' : 'sftp';
         const { host, port, username, password } = config;
 
         if (!password) {
             throw new Error('A password is required. Store it through the configuration editor.');
         }
-        if (this.connectionType === 'ftp' && config.ftpSecure !== true) {
+        if (nextConnectionType === 'ftp' && config.ftpSecure !== true) {
             throw new Error('Plain FTP is disabled. Set ftpSecure to true and use FTPS.');
         }
 
         try {
-            if (this.status === 'connected') {
+            if (this.status !== 'disconnected') {
                 await this.disconnect();
             }
+            this.currentConfig = config;
+            this.setPath(config.path || '/');
+            this.connectionType = nextConnectionType;
+            this.error = '';
             this.status = 'connecting';
             this.updateStatusConnection();
 
@@ -223,7 +225,7 @@ export default class FtpClientController {
         } catch (error: any) {
             this.status = 'disconnected';
             await this.disconnect();
-            throw new Error(`${this.connectionType.toUpperCase()} connection error: ${error.message}`);
+            throw new Error(`${nextConnectionType.toUpperCase()} connection error: ${error.message}`);
         } finally {
             this.updateStatusConnection();
         }
@@ -502,6 +504,15 @@ export default class FtpClientController {
                     let timeout: NodeJS.Timeout | undefined;
                     let cancellationSubscription: vscode.Disposable | undefined;
 
+                    const resetUploadTimeout = () => {
+                        if (timeout) {
+                            clearTimeout(timeout);
+                        }
+                        timeout = setTimeout(() => {
+                            void cancelUpload(new Error('Upload timed out due to inactivity'));
+                        }, FtpClientController.UPLOAD_INACTIVITY_TIMEOUT);
+                    };
+
                     const cancelUpload = async (error: Error) => {
                         if (cancelled) {
                             return;
@@ -525,6 +536,7 @@ export default class FtpClientController {
                         if (this.connectionType === 'ftp') {
                             this.ftpClient.trackProgress(info => {
                                 progress.report({ increment: info.bytes / 100, message: `${info.bytes / 1024} KB` });
+                                resetUploadTimeout();
                             });
                             try {
                                 await this.ftpClient.uploadFrom(localPath, this.wirePath(remotePath));
@@ -542,9 +554,7 @@ export default class FtpClientController {
                         }
                     };
 
-                    timeout = setTimeout(() => {
-                        void cancelUpload(new Error('Upload timed out'));
-                    }, 10000);
+                    resetUploadTimeout();
                     cancellationSubscription = token.onCancellationRequested(() => {
                         vscode.window.showInformationMessage(LocalizationManager.getInstance().t('Upload cancelled'));
                         void cancelUpload(new Error('Upload cancelled'));

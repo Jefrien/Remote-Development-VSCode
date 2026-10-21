@@ -264,14 +264,27 @@ export default class ConfigManager {
             const normalized = this.validateConfig(data);
             const metadata: Config = { servers: [] };
 
+            let previousIds = new Set<string>();
+            try {
+                const previous = JSON.parse(await fs.readFile(this.configPath, 'utf8')) as Config;
+                previousIds = new Set(
+                    previous.servers
+                        ?.map(server => server.id)
+                        .filter((id): id is string => typeof id === 'string')
+                );
+            } catch {
+                // A missing or invalid previous file will be replaced below.
+            }
+
             for (const server of normalized.servers) {
                 const id = server.id ?? randomUUID();
                 const password = server.password;
                 if (password && password !== '<stored in VS Code SecretStorage>') {
                     await this.context.secrets.store(this.passwordKey(id), password);
-                } else if (password === '') {
+                } else if (password === undefined || password === '') {
                     await this.context.secrets.delete(this.passwordKey(id));
                 }
+                previousIds.delete(id);
 
                 const { password: _password, ...withoutPassword } = server;
                 metadata.servers.push({
@@ -279,6 +292,10 @@ export default class ConfigManager {
                     id,
                     password: '<stored in VS Code SecretStorage>'
                 });
+            }
+
+            for (const removedId of previousIds) {
+                await this.context.secrets.delete(this.passwordKey(removedId));
             }
 
             await fs.writeFile(this.configPath, JSON.stringify(metadata, null, 2), {

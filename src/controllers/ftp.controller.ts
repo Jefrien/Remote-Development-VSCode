@@ -46,6 +46,7 @@ export default class FtpClientController {
     private connectionType: 'sftp' | 'ftp' | null = null;
     private reconnectPromise?: Promise<void>;
     private outputChannel?: vscode.OutputChannel;
+    private readonly stateListeners = new Set<() => void>();
 
     private constructor() {
         this.client = new SFTPClient();
@@ -154,6 +155,11 @@ export default class FtpClientController {
         };
     }
 
+    public onConnectionStateChanged(listener: () => void): vscode.Disposable {
+        this.stateListeners.add(listener);
+        return new vscode.Disposable(() => this.stateListeners.delete(listener));
+    }
+
     public setPath(remotePath: string) {
         const normalized = remotePath.replace(/\\/g, '/');
         this.basePath = normalized.startsWith('/')
@@ -177,13 +183,20 @@ export default class FtpClientController {
                 break;
         }
         StatusBarController.getInstance().updateStatusBarText(message, this.status === 'connecting');
+        for (const listener of this.stateListeners) {
+            try {
+                listener();
+            } catch (error) {
+                this.writeLog(`Connection state listener error: ${String(error)}`);
+            }
+        }
     }
 
     private wirePath(remotePath: string): string {
         return pathServerFormat(remotePath, this.connectionType === 'ftp' ? 'ftp' : 'sftp');
     }
 
-    public async connect(config: ServerItem) {
+    public async connect(config: ServerItem, token?: vscode.CancellationToken) {
         const nextConnectionType: 'ftp' | 'sftp' = config.port === 21 || config.type === 'ftp' ? 'ftp' : 'sftp';
         const { host, port, username, password } = config;
 
@@ -194,9 +207,20 @@ export default class FtpClientController {
             throw new Error('Plain FTP is disabled. Set ftpSecure to true and use FTPS.');
         }
 
+        if (token?.isCancellationRequested) {
+            throw new Error('Connection cancelled');
+        }
+
+        const cancellationSubscription = token?.onCancellationRequested(() => {
+            void this.disconnect();
+        });
+
         try {
             if (this.status !== 'disconnected') {
                 await this.disconnect();
+            }
+            if (token?.isCancellationRequested) {
+                throw new Error('Connection cancelled');
             }
             this.currentConfig = config;
             this.setPath(config.path || '/');
@@ -214,11 +238,15 @@ export default class FtpClientController {
                         password,
                         secure: true,
                     }),
-                    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('FTP connection timed out')), 15000))
+                    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('FTP connection timed out')), 15000)),
+                    ...(token ? [new Promise<never>((_, reject) => token.onCancellationRequested(() => reject(new Error('Connection cancelled'))))] : [])
                 ]);
                 this.registerFtpSocketEvents();
             } else { // sftp
-                await this.connectSftpWithTrust(config);
+                await this.connectSftpWithTrust(config, token);
+            }
+            if (token?.isCancellationRequested) {
+                throw new Error('Connection cancelled');
             }
             this.status = 'connected';
             this.connectionTime = Date.now();
@@ -227,12 +255,15 @@ export default class FtpClientController {
             await this.disconnect();
             throw new Error(`${nextConnectionType.toUpperCase()} connection error: ${error.message}`);
         } finally {
+            cancellationSubscription?.dispose();
             this.updateStatusConnection();
         }
     }
 
-    private async connectSftpWithTrust(config: ServerItem): Promise<void> {
+    private async connectSftpWithTrust(config: ServerItem, token?: vscode.CancellationToken): Promise<void> {
         let trustError: Error | undefined;
+        let verificationActive = true;
+        let verificationCompleted = false;
 
         // A rejected host-key verification leaves ssh2-sftp-client in a
         // terminal state. Always use a fresh client for a new handshake.
@@ -241,6 +272,19 @@ export default class FtpClientController {
         this.registerEvents();
 
         const verifyHostKey = ((fingerprint: string, verify: (trusted: boolean) => void): void => {
+            const verifyOnce = (trusted: boolean) => {
+                if (verificationCompleted) {
+                    return;
+                }
+                verificationCompleted = true;
+                verify(trusted);
+            };
+
+            if (!verificationActive || token?.isCancellationRequested) {
+                verifyOnce(false);
+                return;
+            }
+
             const received = normalizeFingerprint(fingerprint);
             const expected = config.hostFingerprint
                 ? normalizeFingerprint(config.hostFingerprint)
@@ -249,7 +293,7 @@ export default class FtpClientController {
             this.writeLog(`SFTP host key received; match=${matches}`);
 
             if (matches) {
-                verify(true);
+                verifyOnce(true);
                 return;
             }
 
@@ -263,39 +307,54 @@ export default class FtpClientController {
                 'Trust always',
                 'Cancel'
             )).then(async action => {
+                if (!verificationActive || token?.isCancellationRequested) {
+                    verifyOnce(false);
+                    return;
+                }
                 if (action === 'Trust once' || action === 'Trust always') {
                     if (action === 'Trust always') {
                         await ConfigManager.getInstance(this.context).saveServerFingerprint(config, received);
                         config.hostFingerprint = received;
                     }
-                    verify(true);
+                    verifyOnce(true);
                     return;
                 }
                 trustError = new Error('SFTP host key was not trusted');
-                verify(false);
+                verifyOnce(false);
             }).catch((error: unknown) => {
                 trustError = error instanceof Error ? error : new Error(String(error));
-                verify(false);
+                verifyOnce(false);
             });
         }) as unknown as HostFingerprintVerifier;
 
-        await Promise.race([
-            this.client.connect({
-                host: config.host,
-                port: config.port,
-                username: config.username,
-                password: config.password,
-                hostHash: 'sha256',
-                hostVerifier: verifyHostKey,
-                readyTimeout: 10000,
-                retries: 0,
-            }),
-            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('SFTP connection timed out')), 15000))
-        ]).catch(async error => {
+        let timeout: NodeJS.Timeout | undefined;
+        try {
+            await Promise.race([
+                this.client.connect({
+                    host: config.host,
+                    port: config.port,
+                    username: config.username,
+                    password: config.password,
+                    hostHash: 'sha256',
+                    hostVerifier: verifyHostKey,
+                    readyTimeout: 10000,
+                    retries: 0,
+                }),
+                new Promise<never>((_, reject) => {
+                    timeout = setTimeout(() => reject(new Error('SFTP connection timed out')), 15000);
+                }),
+                ...(token ? [new Promise<never>((_, reject) => token.onCancellationRequested(() => reject(new Error('Connection cancelled'))))] : [])
+            ]);
+        } catch (error) {
             this.status = 'disconnected';
             await this.closeSftpSafely();
             throw trustError || error;
-        });
+        } finally {
+            verificationActive = false;
+            if (timeout) {
+                clearTimeout(timeout);
+            }
+        }
     }
 
     private async closeSftpSafely(): Promise<void> {

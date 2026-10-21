@@ -149,7 +149,11 @@ export default class ConfigManager {
         );
         this.configPanel = panel;
         panel.webview.html = await this.getConfigWebviewHtml(panel.webview);
+        const stateTimer = setInterval(() => {
+            void this.postConnectionState(panel).catch(() => undefined);
+        }, 1000);
         panel.onDidDispose(() => {
+            clearInterval(stateTimer);
             if (this.configPanel === panel) {
                 this.configPanel = undefined;
             }
@@ -168,7 +172,7 @@ export default class ConfigManager {
                         await this.postConnectionState(panel);
                         break;
                     case 'connect':
-                        await vscode.commands.executeCommand('remote-development.connect-server', message.server);
+                        await vscode.commands.executeCommand('remote-development.connect-server', message.serverId);
                         await this.postConnectionState(panel);
                         break;
                     case 'disconnect':

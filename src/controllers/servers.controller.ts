@@ -34,7 +34,14 @@ export default class ServersController {
         );
         const connectCommand = vscode.commands.registerCommand(
             'remote-development.connect-server',
-            async (server: ServerItem) => this.onSelectServer(server)
+            async (serverId: string) => {
+                await this.loadServers();
+                const server = this.config.servers.find(item => item.id === serverId);
+                if (!server) {
+                    throw new Error('The selected server no longer exists. Reload the connections and try again.');
+                }
+                return this.onSelectServer(server);
+            }
         );
         const disconnectCommand = vscode.commands.registerCommand(
             'remote-development.disconnect-server',
@@ -80,7 +87,7 @@ export default class ServersController {
                 cancellable: true,
             },
             async (progress, token) => {
-                token.onCancellationRequested(() => {
+                const cancellationSubscription = token.onCancellationRequested(() => {
                     vscode.window.showInformationMessage(LocalizationManager.getInstance().t('Connection cancelled'));
                 });
 
@@ -92,7 +99,7 @@ export default class ServersController {
                         server.id = Math.random().toString(36).substring(2, 15);
                     }
 
-                    await ftpClient.connect(server);
+                    await ftpClient.connect(server, token);
 
                     if (ftpClient.error) {
                         vscode.window.showErrorMessage(ftpClient.error);
@@ -103,10 +110,15 @@ export default class ServersController {
                     ExplorerController.getInstance(this.context).initServer();
                     return true;
                 } catch (error: any) {
+                    if (token.isCancellationRequested) {
+                        return false;
+                    }
                     vscode.window.showErrorMessage(
                         LocalizationManager.getInstance().t('Error connecting to server: {0}', error.message)
                     );
                     return false;
+                } finally {
+                    cancellationSubscription.dispose();
                 }
             }
         );

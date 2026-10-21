@@ -275,7 +275,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 1px s
 .server-status.error::before { background: var(--vscode-errorForeground); }
 .empty-list, .empty-editor { padding: 22px 16px; color: var(--vscode-descriptionForeground); line-height: 1.5; }
 .empty-list strong, .empty-editor strong { display: block; margin-bottom: 7px; color: var(--vscode-foreground); }
-.editor { max-width: 690px; }
+.editor { position: sticky; top: 18px; align-self: start; max-width: 690px; max-height: calc(100vh - 72px); overflow: auto; }
 .editor-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
 .editor-header h2 { margin: 0; font-size: 18px; font-weight: 600; }
 .editor-header p { margin: 5px 0 0; color: var(--vscode-descriptionForeground); }
@@ -300,7 +300,7 @@ input.invalid, select.invalid { border-color: var(--vscode-errorForeground); }
 .form-actions .right { display: flex; gap: 8px; }
 .status { min-height: 20px; margin-top: 14px; color: var(--vscode-testing-iconPassed); font-size: 12px; }
 .status.error { color: var(--vscode-errorForeground); }
-@media (max-width: 700px) { .app { padding: 20px 16px; } .topbar { flex-direction: column; } .layout { grid-template-columns: 1fr; } .sidebar { border-right: 0; border-bottom: 1px solid var(--vscode-panel-border); padding: 0 0 18px; } .editor { max-width: none; } }
+@media (max-width: 700px) { .app { padding: 20px 16px; } .topbar { flex-direction: column; } .layout { grid-template-columns: 1fr; } .sidebar { border-right: 0; border-bottom: 1px solid var(--vscode-panel-border); padding: 0 0 18px; } .editor { position: static; max-width: none; max-height: none; overflow: visible; } }
 </style>
 </head>
 <body>
@@ -331,7 +331,11 @@ const search = document.getElementById('search');
 const filter = document.getElementById('filter');
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const setStatus = (text, error = false) => { status.textContent = text; status.className = error ? 'status error' : 'status'; };
-const statusFor = server => ((connectionState.serverId && connectionState.serverId === server.id) || (connectionState.host && connectionState.host === server.host && connectionState.port === server.port)) ? connectionState.status : 'disconnected';
+const statusFor = server => {
+  const sameServer = connectionState.host && connectionState.port === server.port && connectionState.host === server.host && connectionState.username === server.username && connectionState.path === server.path && connectionState.type === (server.type || 'sftp');
+  if (connectionState.serverId) return connectionState.serverId === server.id && sameServer ? connectionState.status : 'disconnected';
+  return sameServer ? connectionState.status : 'disconnected';
+};
 const statusLabel = state => labels[state] || labels.disconnected;
 function renderList() {
   count.textContent = config.servers.length;

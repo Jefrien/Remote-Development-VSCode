@@ -141,12 +141,14 @@ export default class FtpClientController {
         return this.currentConfig;
     }
 
-    public getConnectionState(): { status: 'connected' | 'disconnected' | 'connecting'; serverId?: string; host?: string; port?: number; type?: string } {
+    public getConnectionState(): { status: 'connected' | 'disconnected' | 'connecting'; serverId?: string; host?: string; port?: number; username?: string; path?: string; type?: string } {
         return {
             status: this.status,
             serverId: this.currentConfig.id,
             host: this.currentConfig.host,
             port: this.currentConfig.port,
+            username: this.currentConfig.username,
+            path: this.currentConfig.path,
             type: this.currentConfig.type || (this.connectionType === 'ftp' ? 'ftp' : 'sftp')
         };
     }

@@ -31,7 +31,7 @@
         "command": "remote-development.open-config",
         "title": "%commands.openConfig%",
         "icon": {
-          "light": "resources/light/settings-icon.svg",
+          "light": "resources/ligth/settings-icon.svg",
           "dark": "resources/dark/settings-icon.svg"
         }
       },

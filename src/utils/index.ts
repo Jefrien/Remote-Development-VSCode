@@ -14,15 +14,18 @@ export function getTempDirectory() {
     return path.normalize(tempDir);
 }
 
-export function pathServerFormat(path: string) {     
-    let customPath = path.replace(/\\/g, '/');
+export function pathServerFormat(remotePath: string, protocol: 'ftp' | 'sftp' = 'sftp') {
+    const normalized = remotePath.replace(/\\/g, '/');
 
-    // make path relative if starts with / and only one /
-    if (customPath.startsWith('/') && customPath.indexOf('/', 1) === -1) {
-        customPath = customPath.substring(1);
+    // SFTP paths are POSIX paths and must remain absolute. In particular, `/`
+    // must not become an empty string (which means "current directory").
+    if (protocol === 'sftp') {
+        return normalized.startsWith('/') ? normalized || '/' : `/${normalized}`;
     }
 
-    return customPath;
+    // FTP clients operate relative to the authenticated FTP root. Strip only
+    // the leading slash, consistently for root and nested paths.
+    return normalized === '/' ? '' : normalized.replace(/^\/+/, '');
 }
 
 export function assertRemotePath(requestedPath: string, basePath: string = '/') {

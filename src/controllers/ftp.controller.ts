@@ -18,6 +18,13 @@ export class TimeoutError extends Error {
     }
 }
 
+export function isTransientConnectionError(error: unknown, disconnected = false, clientClosed = false): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return disconnected
+        || clientClosed
+        || /(?:ECONN|EPIPE|socket|connection|timeout|timed out|closed|reset|TLS)/i.test(message);
+}
+
 export default class FtpClientController {
     private static RECONNECT_THRESHOLD = 10 * 60 * 1000; // 10 minutes
     private static instance: FtpClientController;
@@ -150,6 +157,10 @@ export default class FtpClientController {
                 break;
         }
         StatusBarController.getInstance().updateStatusBarText(message, this.status === 'connecting');
+    }
+
+    private wirePath(remotePath: string): string {
+        return pathServerFormat(remotePath, this.connectionType === 'ftp' ? 'ftp' : 'sftp');
     }
 
     public async connect(config: ServerItem) {
@@ -358,8 +369,8 @@ export default class FtpClientController {
 
             const safePath = assertRemotePath(_path, this.basePath);
             const listPromise = this.connectionType === 'ftp'
-                ? this.ftpClient.list(pathServerFormat(safePath)).then(files => this.toSftpFileInfo(files))
-                : this.client.list(pathServerFormat(safePath));
+                ? this.ftpClient.list(this.wirePath(safePath)).then(files => this.toSftpFileInfo(files))
+                : this.client.list(this.wirePath(safePath));
 
             const files = await Promise.race([
                 listPromise,
@@ -384,9 +395,9 @@ export default class FtpClientController {
             await this.reconnector();
             const safePath = assertRemotePath(_path, this.basePath);
             if (this.connectionType === 'ftp') {
-                await this.ftpClient.list(pathServerFormat(safePath));
+                await this.ftpClient.list(this.wirePath(safePath));
             } else {
-                await this.client.list(pathServerFormat(safePath));
+                await this.client.list(this.wirePath(safePath));
             }
             this.updateStatusConnection();
         } catch (error: any) {
@@ -404,9 +415,9 @@ export default class FtpClientController {
             const safePath = assertRemotePath(_path, this.basePath);
             const readable = Readable.from(data);
             if (this.connectionType === 'ftp') {
-                await this.ftpClient.uploadFrom(readable, pathServerFormat(safePath));
+                await this.ftpClient.uploadFrom(readable, this.wirePath(safePath));
             } else {
-                await this.client.put(data, pathServerFormat(safePath), {
+                await this.client.put(data, this.wirePath(safePath), {
                     writeStreamOptions: {
                         flags: 'w',
                         encoding: 'utf8',
@@ -420,6 +431,22 @@ export default class FtpClientController {
             await this.reconnector();
             throw error;
         }
+    }
+
+    public async uploadLocalFile(localPath: string, remotePath: string): Promise<void> {
+        const stats = await fs.promises.stat(localPath);
+        if (!stats.isFile()) {
+            throw new Error('The selected upload source is not a regular file');
+        }
+
+        await this.reconnector();
+        const safePath = assertRemotePath(remotePath, this.basePath);
+        if (this.connectionType === 'ftp') {
+            await this.ftpClient.uploadFrom(localPath, this.wirePath(safePath));
+        } else {
+            await this.client.put(localPath, this.wirePath(safePath));
+        }
+        this.updateStatusConnection();
     }
 
     public async uploadFile() {
@@ -447,29 +474,42 @@ export default class FtpClientController {
                 cancellable: true,
             }, async (progress, token) => {
                 return new Promise(async (resolve, reject) => {
-                    const timeout = setTimeout(() => {
-                        reject(new Error('Upload timed out'));
-                    }, 10000);
+                    let cancelled = false;
+                    let uploadPromise: Promise<void> | undefined;
+                    let timeout: NodeJS.Timeout | undefined;
+                    let cancellationSubscription: vscode.Disposable | undefined;
 
-                    token.onCancellationRequested(() => {
-                        clearTimeout(timeout);
-                        vscode.window.showInformationMessage('Upload cancelled');
-                        reject(new Error('Upload cancelled'));
-                    });
+                    const cancelUpload = async (error: Error) => {
+                        if (cancelled) {
+                            return;
+                        }
+                        cancelled = true;
+                        if (timeout) {
+                            clearTimeout(timeout);
+                        }
+                        cancellationSubscription?.dispose();
+                        // Closing the active transport is the cancellation
+                        // mechanism supported by both basic-ftp and SFTP.
+                        await this.disconnect();
+                        reject(error);
+                    };
 
                     const uploadOnce = async () => {
                         await this.reconnector();
+                        if (cancelled) {
+                            throw new Error('Upload cancelled');
+                        }
                         if (this.connectionType === 'ftp') {
                             this.ftpClient.trackProgress(info => {
                                 progress.report({ increment: info.bytes / 100, message: `${info.bytes / 1024} KB` });
                             });
                             try {
-                                await this.ftpClient.uploadFrom(localPath, remotePath);
+                                await this.ftpClient.uploadFrom(localPath, this.wirePath(remotePath));
                             } finally {
                                 this.ftpClient.trackProgress();
                             }
                         } else {
-                            await this.client.put(localPath, remotePath, {
+                            await this.client.put(localPath, this.wirePath(remotePath), {
                                 writeStreamOptions: {
                                     flags: 'w',
                                     encoding: 'utf8',
@@ -479,17 +519,35 @@ export default class FtpClientController {
                         }
                     };
 
+                    timeout = setTimeout(() => {
+                        void cancelUpload(new Error('Upload timed out'));
+                    }, 10000);
+                    cancellationSubscription = token.onCancellationRequested(() => {
+                        vscode.window.showInformationMessage('Upload cancelled');
+                        void cancelUpload(new Error('Upload cancelled'));
+                    });
+
                     try {
-                        await uploadOnce();
+                        uploadPromise = uploadOnce();
+                        await uploadPromise;
+                        if (cancelled) {
+                            return;
+                        }
                         clearTimeout(timeout);
+                        cancellationSubscription?.dispose();
                         StatusBarController.getInstance().updateStatusBarText(`${protocol}: File uploaded successfully`, false);
                         resolve(true);
                     } catch (error: any) {
-                        if (this.isConnectionError(error)) {
+                        if (!cancelled && isTransientConnectionError(error, this.status === 'disconnected', this.ftpClient.closed)) {
                             try {
                                 this.markDisconnected(error);
-                                await uploadOnce();
+                                uploadPromise = uploadOnce();
+                                await uploadPromise;
+                                if (cancelled) {
+                                    return;
+                                }
                                 clearTimeout(timeout);
+                                cancellationSubscription?.dispose();
                                 StatusBarController.getInstance().updateStatusBarText(`${protocol}: File uploaded successfully`, false);
                                 resolve(true);
                                 return;
@@ -498,6 +556,10 @@ export default class FtpClientController {
                             }
                         }
                         clearTimeout(timeout);
+                        cancellationSubscription?.dispose();
+                        if (cancelled) {
+                            return;
+                        }
                         vscode.window.showErrorMessage(`Error uploading file: ${error.message}`);
                         reject(error);
                     }
@@ -508,13 +570,6 @@ export default class FtpClientController {
             this.updateStatusConnection();
             throw error;
         }
-    }
-
-    private isConnectionError(error: unknown): boolean {
-        const message = error instanceof Error ? error.message : String(error);
-        return this.status === 'disconnected'
-            || this.ftpClient.closed
-            || /(?:ECONN|EPIPE|socket|connection|timeout|timed out|closed|reset|TLS)/i.test(message);
     }
 
     public async downloadFile(remotePath: string, localPath: string, maxBytes = 50 * 1024 * 1024) {
@@ -547,9 +602,9 @@ export default class FtpClientController {
             });
             file.on('error', error => dst.destroy(error));
             if (this.connectionType === 'ftp') {
-                await this.ftpClient.downloadTo(dst, pathServerFormat(safeRemotePath));
+                await this.ftpClient.downloadTo(dst, this.wirePath(safeRemotePath));
             } else {
-                await this.client.get(pathServerFormat(safeRemotePath), dst);
+                await this.client.get(this.wirePath(safeRemotePath), dst);
             }
         } catch (error: any) {
             try {
@@ -570,9 +625,9 @@ export default class FtpClientController {
             await this.reconnector();
             const safePath = assertRemotePath(remotePath, this.basePath);
             if (this.connectionType === 'ftp') {
-                await this.ftpClient.remove(pathServerFormat(safePath));
+                await this.ftpClient.remove(this.wirePath(safePath));
             } else {
-                await this.client.delete(pathServerFormat(safePath));
+                await this.client.delete(this.wirePath(safePath));
             }
         } catch (error: any) {
             vscode.window.showErrorMessage(`Error deleting file: ${error.message}`);
@@ -590,9 +645,9 @@ export default class FtpClientController {
             const safePath = assertRemotePath(remotePath, this.basePath);
             const safeNewPath = assertRemotePath(newName, this.basePath);
             if (this.connectionType === 'ftp') {
-                await this.ftpClient.rename(pathServerFormat(safePath), pathServerFormat(safeNewPath));
+                await this.ftpClient.rename(this.wirePath(safePath), this.wirePath(safeNewPath));
             } else {
-                await this.client.rename(pathServerFormat(safePath), safeNewPath);
+                await this.client.rename(this.wirePath(safePath), this.wirePath(safeNewPath));
             }
         } catch (error: any) {
             vscode.window.showErrorMessage(`Error renaming file: ${error.message}`);
@@ -612,9 +667,9 @@ export default class FtpClientController {
             }
             const safePath = assertRemotePath(remotePath, this.basePath);
             if (this.connectionType === 'ftp') {
-                await this.ftpClient.send(`SITE CHMOD ${permissions.toString(8)} ${pathServerFormat(safePath)}`);
+                await this.ftpClient.send(`SITE CHMOD ${permissions.toString(8)} ${this.wirePath(safePath)}`);
             } else {
-                await this.client.chmod(pathServerFormat(safePath), permissions);
+                await this.client.chmod(this.wirePath(safePath), permissions);
             }
         } catch (error: any) {
             vscode.window.showErrorMessage(`Error changing permissions: ${error.message}`);
@@ -631,9 +686,9 @@ export default class FtpClientController {
             await this.reconnector();
             const safePath = assertRemotePath(_path, this.basePath);
             if (this.connectionType === 'ftp') {
-                await this.ftpClient.ensureDir(pathServerFormat(safePath));
+                await this.ftpClient.ensureDir(this.wirePath(safePath));
             } else {
-                await this.client.mkdir(pathServerFormat(safePath));
+                await this.client.mkdir(this.wirePath(safePath));
             }
         } catch (error: any) {
             console.error(error);
@@ -652,9 +707,9 @@ export default class FtpClientController {
             const safePath = assertRemotePath(remotePath, this.basePath);
             const safeNewPath = assertRemotePath(newName, this.basePath);
             if (this.connectionType === 'ftp') {
-                await this.ftpClient.rename(pathServerFormat(safePath), pathServerFormat(safeNewPath));
+                await this.ftpClient.rename(this.wirePath(safePath), this.wirePath(safeNewPath));
             } else {
-                await this.client.rename(pathServerFormat(safePath), safeNewPath);
+                await this.client.rename(this.wirePath(safePath), this.wirePath(safeNewPath));
             }
         } catch (error: any) {
             vscode.window.showErrorMessage(`Error renaming folder: ${error.message}`);
@@ -671,9 +726,9 @@ export default class FtpClientController {
             await this.reconnector();
             const safePath = assertRemotePath(remotePath, this.basePath);
             if (this.connectionType === 'ftp') {
-                await this.ftpClient.removeDir(pathServerFormat(safePath));
+                await this.ftpClient.removeDir(this.wirePath(safePath));
             } else {
-                await this.client.rmdir(pathServerFormat(safePath), true);
+                await this.client.rmdir(this.wirePath(safePath), true);
             }
         } catch (error: any) {
             vscode.window.showErrorMessage(`Error deleting folder: ${error.message}`);

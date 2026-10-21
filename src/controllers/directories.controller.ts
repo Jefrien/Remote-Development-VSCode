@@ -143,7 +143,7 @@ export default class DirectoriesController {
                 return;
             }
 
-            vscode.window.withProgress({
+            await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
                 title: vscode.l10n.t('Uploading file...'),
                 cancellable: true
@@ -154,7 +154,7 @@ export default class DirectoriesController {
                 let filename = path.basename(localPath);
                 filename = path.join(item.path, filename);
 
-                await FtpClientController.getInstance().createFile(filename, localPath);
+                await FtpClientController.getInstance().uploadLocalFile(localPath, filename);
                 ExplorerController.getInstanceAlt().refresh();
                 vscode.window.showInformationMessage(vscode.l10n.t('File uploaded: {0}', path.basename(localPath)));
                 return true;

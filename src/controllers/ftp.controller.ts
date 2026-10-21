@@ -141,6 +141,16 @@ export default class FtpClientController {
         return this.currentConfig;
     }
 
+    public getConnectionState(): { status: 'connected' | 'disconnected' | 'connecting'; serverId?: string; host?: string; port?: number; type?: string } {
+        return {
+            status: this.status,
+            serverId: this.currentConfig.id,
+            host: this.currentConfig.host,
+            port: this.currentConfig.port,
+            type: this.currentConfig.type || (this.connectionType === 'ftp' ? 'ftp' : 'sftp')
+        };
+    }
+
     public setPath(remotePath: string) {
         const normalized = remotePath.replace(/\\/g, '/');
         this.basePath = normalized.startsWith('/')

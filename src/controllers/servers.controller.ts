@@ -32,7 +32,19 @@ export default class ServersController {
                 );
             }
         );
-        this.context.subscriptions.push(command);
+        const connectCommand = vscode.commands.registerCommand(
+            'remote-development.connect-server',
+            async (server: ServerItem) => this.onSelectServer(server)
+        );
+        const disconnectCommand = vscode.commands.registerCommand(
+            'remote-development.disconnect-server',
+            async () => FtpClientController.getInstance().disconnect()
+        );
+        const stateCommand = vscode.commands.registerCommand(
+            'remote-development.connection-state',
+            () => FtpClientController.getInstance().getConnectionState()
+        );
+        this.context.subscriptions.push(command, connectCommand, disconnectCommand, stateCommand);
     }
 
     public static getInstance(_context: vscode.ExtensionContext): ServersController {

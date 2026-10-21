@@ -1,4 +1,5 @@
 import SFTPClient from 'ssh2-sftp-client';
+import type { HostFingerprintVerifier } from 'ssh2';
 import { Client, FileInfo as FtpFileInfo, FileType } from "basic-ftp";
 import * as vscode from 'vscode';
 import { ServerItem } from '../types';
@@ -217,7 +218,7 @@ export default class FtpClientController {
     }
 
     private async connectSftpWithTrust(config: ServerItem): Promise<void> {
-        let observedFingerprint: string | undefined;
+        let trustError: Error | undefined;
 
         // A rejected host-key verification leaves ssh2-sftp-client in a
         // terminal state. Always use a fresh client for a new handshake.
@@ -225,72 +226,62 @@ export default class FtpClientController {
         this.client = new SFTPClient();
         this.registerEvents();
 
-        const attempt = async (trustedFingerprint?: string) => {
-            observedFingerprint = undefined;
-            const expected = trustedFingerprint ? normalizeFingerprint(trustedFingerprint) : undefined;
-            await Promise.race([
-                this.client.connect({
-                    host: config.host,
-                    port: config.port,
-                    username: config.username,
-                    password: config.password,
-                    hostHash: 'sha256',
-                    hostVerifier: (fingerprint: string) => {
-                        const received = normalizeFingerprint(fingerprint);
-                        observedFingerprint = received;
-                        this.writeLog(`SFTP host key received; match=${Boolean(expected && received === expected)}`);
-                        return Boolean(expected && received === expected);
-                    },
-                    readyTimeout: 10000,
-                    // A rejected host key should reach the trust prompt
-                    // immediately instead of retrying the handshake.
-                    retries: 0,
-                }),
-                new Promise<never>((_, reject) => setTimeout(() => reject(new Error('SFTP connection timed out')), 15000))
-            ]);
-        };
+        const verifyHostKey = ((fingerprint: string, verify: (trusted: boolean) => void): void => {
+            const received = normalizeFingerprint(fingerprint);
+            const expected = config.hostFingerprint
+                ? normalizeFingerprint(config.hostFingerprint)
+                : undefined;
+            const matches = Boolean(expected && received === expected);
+            this.writeLog(`SFTP host key received; match=${matches}`);
 
-        try {
-            await attempt(config.hostFingerprint);
-            return;
-        } catch (error: any) {
-            this.status = 'disconnected';
-            await this.closeSftpSafely();
-            if (!observedFingerprint) {
-                throw error;
+            if (matches) {
+                verify(true);
+                return;
             }
 
-            const changed = Boolean(config.hostFingerprint);
-            const detail = changed
-                ? `The server host key changed.\n\nExpected: ${config.hostFingerprint}\nReceived: ${observedFingerprint}`
-                : `This server has not been trusted yet.\n\nFingerprint: ${observedFingerprint}`;
-            const action = await vscode.window.showWarningMessage(
-                changed ? 'SFTP host key changed' : 'Trust this SFTP server?',
+            const detail = expected
+                ? `The server host key changed.\n\nExpected: ${config.hostFingerprint}\nReceived: ${received}`
+                : `This server has not been trusted yet.\n\nFingerprint: ${received}`;
+            void Promise.resolve(vscode.window.showWarningMessage(
+                expected ? 'SFTP host key changed' : 'Trust this SFTP server?',
                 { modal: true, detail },
                 'Trust once',
                 'Trust always',
                 'Cancel'
-            );
+            )).then(async action => {
+                if (action === 'Trust once' || action === 'Trust always') {
+                    if (action === 'Trust always') {
+                        await ConfigManager.getInstance(this.context).saveServerFingerprint(config, received);
+                        config.hostFingerprint = received;
+                    }
+                    verify(true);
+                    return;
+                }
+                trustError = new Error('SFTP host key was not trusted');
+                verify(false);
+            }).catch((error: unknown) => {
+                trustError = error instanceof Error ? error : new Error(String(error));
+                verify(false);
+            });
+        }) as unknown as HostFingerprintVerifier;
 
-            if (action === 'Cancel' || !action) {
-                throw new Error('SFTP host key was not trusted');
-            }
-
-            config.hostFingerprint = observedFingerprint;
-            if (action === 'Trust always') {
-                await ConfigManager.getInstance(this.context).saveServerFingerprint(config, observedFingerprint);
-            }
-            // ssh2-sftp-client instances that rejected a host key are not
-            // reusable for the next handshake.
-            this.client = new SFTPClient();
-            this.registerEvents();
-            try {
-                await attempt(observedFingerprint);
-            } catch (retryError) {
-                await this.closeSftpSafely();
-                throw retryError;
-            }
-        }
+        await Promise.race([
+            this.client.connect({
+                host: config.host,
+                port: config.port,
+                username: config.username,
+                password: config.password,
+                hostHash: 'sha256',
+                hostVerifier: verifyHostKey,
+                readyTimeout: 10000,
+                retries: 0,
+            }),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('SFTP connection timed out')), 15000))
+        ]).catch(async error => {
+            this.status = 'disconnected';
+            await this.closeSftpSafely();
+            throw trustError || error;
+        });
     }
 
     private async closeSftpSafely(): Promise<void> {

@@ -28,6 +28,10 @@ export function isTransientConnectionError(error: unknown, disconnected = false,
         || /(?:ECONN|EPIPE|socket|connection|timeout|timed out|closed|reset|TLS)/i.test(message);
 }
 
+export function resolveSftpAuthMethod(config: Pick<ServerItem, 'authMethod' | 'privateKeyPath'>): 'password' | 'privateKey' {
+    return config.authMethod || (config.privateKeyPath ? 'privateKey' : 'password');
+}
+
 function normalizeFingerprint(fingerprint: string): string {
     return fingerprint.trim().toLowerCase().replace(/^sha256:/, '').replace(/:/g, '');
 }
@@ -47,7 +51,6 @@ export default class FtpClientController {
     private connectionType: 'sftp' | 'ftp' | null = null;
     private reconnectPromise?: Promise<void>;
     private outputChannel?: vscode.OutputChannel;
-    private readonly stateListeners = new Set<() => void>();
 
     private constructor() {
         this.client = new SFTPClient();
@@ -156,11 +159,6 @@ export default class FtpClientController {
         };
     }
 
-    public onConnectionStateChanged(listener: () => void): vscode.Disposable {
-        this.stateListeners.add(listener);
-        return new vscode.Disposable(() => this.stateListeners.delete(listener));
-    }
-
     public setPath(remotePath: string) {
         const normalized = remotePath.replace(/\\/g, '/');
         this.basePath = normalized.startsWith('/')
@@ -184,13 +182,6 @@ export default class FtpClientController {
                 break;
         }
         StatusBarController.getInstance().updateStatusBarText(message, this.status === 'connecting');
-        for (const listener of this.stateListeners) {
-            try {
-                listener();
-            } catch (error) {
-                this.writeLog(`Connection state listener error: ${String(error)}`);
-            }
-        }
     }
 
     private wirePath(remotePath: string): string {
@@ -200,8 +191,7 @@ export default class FtpClientController {
     public async connect(config: ServerItem, token?: vscode.CancellationToken) {
         const nextConnectionType: 'ftp' | 'sftp' = config.port === 21 || config.type === 'ftp' ? 'ftp' : 'sftp';
         const { host, port, username, password, privateKeyPath } = config;
-        const usePrivateKey = nextConnectionType === 'sftp'
-            && (config.authMethod === 'privateKey' || (!config.authMethod && Boolean(privateKeyPath)));
+        const usePrivateKey = nextConnectionType === 'sftp' && resolveSftpAuthMethod(config) === 'privateKey';
 
         if (nextConnectionType === 'sftp' && ((!usePrivateKey && !password) || (usePrivateKey && !privateKeyPath))) {
             throw new Error('A password or private key is required. Configure one through the connection editor.');
@@ -236,7 +226,15 @@ export default class FtpClientController {
             this.updateStatusConnection();
 
             if (this.connectionType === 'ftp') {
-                await Promise.race([
+                let timeout: NodeJS.Timeout | undefined;
+                let transportCancellationSubscription: vscode.Disposable | undefined;
+                const cancellationPromise = token
+                    ? new Promise<never>((_, reject) => {
+                        transportCancellationSubscription = token.onCancellationRequested(() => reject(new Error('Connection cancelled')));
+                    })
+                    : undefined;
+                try {
+                    await Promise.race([
                     this.ftpClient.access({
                         host,
                         port,
@@ -244,9 +242,17 @@ export default class FtpClientController {
                         password,
                         secure: true,
                     }),
-                    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('FTP connection timed out')), 15000)),
-                    ...(token ? [new Promise<never>((_, reject) => token.onCancellationRequested(() => reject(new Error('Connection cancelled'))))] : [])
-                ]);
+                        new Promise<never>((_, reject) => {
+                            timeout = setTimeout(() => reject(new Error('FTP connection timed out')), 15000);
+                        }),
+                        ...(cancellationPromise ? [cancellationPromise] : [])
+                    ]);
+                } finally {
+                    if (timeout) {
+                        clearTimeout(timeout);
+                    }
+                    transportCancellationSubscription?.dispose();
+                }
                 this.registerFtpSocketEvents();
             } else { // sftp
                 await this.connectSftpWithTrust(config, token);
@@ -270,7 +276,7 @@ export default class FtpClientController {
         let trustError: Error | undefined;
         let verificationActive = true;
         let verificationCompleted = false;
-        const usePrivateKey = config.authMethod === 'privateKey' || (!config.authMethod && Boolean(config.privateKeyPath));
+        const usePrivateKey = resolveSftpAuthMethod(config) === 'privateKey';
 
         // A rejected host-key verification leaves ssh2-sftp-client in a
         // terminal state. Always use a fresh client for a new handshake.
@@ -554,9 +560,26 @@ export default class FtpClientController {
             void this.disconnect();
         });
         let uploadCancellationSubscription: vscode.Disposable | undefined;
+        let timeout: NodeJS.Timeout | undefined;
+        let rejectInactivity: (reason?: unknown) => void = () => undefined;
+        const inactivityPromise = new Promise<never>((_, reject) => {
+            rejectInactivity = reject;
+        });
+        const resetUploadTimeout = () => {
+            if (timeout) {
+                clearTimeout(timeout);
+            }
+            timeout = setTimeout(() => {
+                void this.disconnect();
+                rejectInactivity(new Error('Upload timed out due to inactivity'));
+            }, FtpClientController.UPLOAD_INACTIVITY_TIMEOUT);
+        };
         try {
+            resetUploadTimeout();
             const upload = this.connectionType === 'ftp'
-                ? this.ftpClient.uploadFrom(localPath, this.wirePath(safePath))
+                ? (this.ftpClient.trackProgress(() => {
+                    resetUploadTimeout();
+                }), this.ftpClient.uploadFrom(localPath, this.wirePath(safePath)))
                 : this.client.put(localPath, this.wirePath(safePath));
             const cancellationPromise = token
                 ? new Promise<never>((_, reject) => {
@@ -565,9 +588,16 @@ export default class FtpClientController {
                 : undefined;
             await Promise.race([
                 upload,
+                inactivityPromise,
                 ...(cancellationPromise ? [cancellationPromise] : [])
             ]);
         } finally {
+            if (timeout) {
+                clearTimeout(timeout);
+            }
+            if (this.connectionType === 'ftp') {
+                this.ftpClient.trackProgress();
+            }
             cancellationSubscription?.dispose();
             uploadCancellationSubscription?.dispose();
         }

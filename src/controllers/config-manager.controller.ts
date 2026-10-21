@@ -4,6 +4,7 @@ import * as fs from 'fs/promises';
 import { randomUUID } from 'crypto';
 import { ServerItem } from '../types';
 import LocalizationManager from './localization.controller';
+import { assertUniqueServerIds } from '../utils';
 
 interface Config {
     servers: ServerItem[];
@@ -191,7 +192,7 @@ export default class ConfigManager {
                             canSelectFiles: true,
                             canSelectFolders: false,
                             canSelectMany: false,
-                            openLabel: 'Select private key'
+                            openLabel: LocalizationManager.getInstance().t('Select private key')
                         });
                         const keyPath = selection?.[0]?.fsPath;
                         if (keyPath) {
@@ -346,6 +347,7 @@ export default class ConfigManager {
             const parsed = this.validateConfig(JSON.parse(data));
             const servers = await Promise.all(parsed.servers.map(async (server) => ({
                 ...server,
+                id: server.id ?? randomUUID(),
                 password: server.password === '<stored in VS Code SecretStorage>'
                     ? await this.context.secrets.get(this.passwordKey(server.id ?? ''))
                     : server.password,
@@ -442,6 +444,8 @@ export default class ConfigManager {
             }
             return { ...candidate };
         });
+
+        assertUniqueServerIds(servers);
 
         return { servers };
     }

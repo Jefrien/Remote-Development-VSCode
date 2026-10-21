@@ -167,6 +167,9 @@ export default class DirectoriesController {
             });
 
         } catch (err: any) {
+            if (err?.message === 'Upload cancelled') {
+                return;
+            }
             vscode.window.showErrorMessage(LocalizationManager.getInstance().t('Error uploading file: {0}', err.message));
         }
     }

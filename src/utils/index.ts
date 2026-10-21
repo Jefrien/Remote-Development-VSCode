@@ -1,6 +1,19 @@
 import path from "path";
 import os from "os";
 import crypto from "crypto";
+import type { ServerItem } from "../types";
+
+export function assertUniqueServerIds(servers: Pick<ServerItem, 'id'>[]): void {
+    const ids = new Set<string>();
+    for (const server of servers) {
+        if (server.id && ids.has(server.id)) {
+            throw new Error(`Duplicate server ID: ${server.id}`);
+        }
+        if (server.id) {
+            ids.add(server.id);
+        }
+    }
+}
 
 export function getTempDirectory() {
     // Process.env contiene las variables de entorno del sistema

@@ -12,11 +12,6 @@ vsc-extension-quickstart.md
 .github
 pnpm-lock.yaml
 out/test/**
-out/controllers/localization.controller.js
-out/controllers/localization.controller.js.map
-out/controllers/language.controller.js
-out/controllers/language.controller.js.map
-
 # Keep only production dependencies in the VSIX.
 node_modules/**
 !node_modules/

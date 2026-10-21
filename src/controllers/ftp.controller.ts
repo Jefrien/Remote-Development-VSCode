@@ -188,6 +188,44 @@ export default class FtpClientController {
         return pathServerFormat(remotePath, this.connectionType === 'ftp' ? 'ftp' : 'sftp');
     }
 
+    private async uploadSftpFile(localPath: string, remotePath: string, onProgress?: (transferred: number, total: number) => void): Promise<void> {
+        try {
+            await this.client.fastPut(localPath, remotePath, {
+                step: (transferred, _chunk, total) => onProgress?.(transferred, total)
+            });
+        } catch (error) {
+            if (this.status === 'disconnected') {
+                throw error;
+            }
+            await this.client.put(localPath, remotePath);
+        }
+    }
+
+    private async withTransportTimeout<T>(operation: Promise<T>, message: string, timeoutMs = 10000): Promise<T> {
+        let timedOut = false;
+        let timeout: NodeJS.Timeout | undefined;
+        try {
+            return await Promise.race([
+                operation,
+                new Promise<never>((_, reject) => {
+                    timeout = setTimeout(() => {
+                        timedOut = true;
+                        reject(new Error(message));
+                    }, timeoutMs);
+                })
+            ]);
+        } catch (error) {
+            if (timedOut) {
+                await this.disconnect();
+            }
+            throw error;
+        } finally {
+            if (timeout) {
+                clearTimeout(timeout);
+            }
+        }
+    }
+
     public async connect(config: ServerItem, token?: vscode.CancellationToken) {
         const nextConnectionType: 'ftp' | 'sftp' = config.port === 21 || config.type === 'ftp' ? 'ftp' : 'sftp';
         const { host, port, username, password, privateKeyPath } = config;
@@ -484,12 +522,7 @@ export default class FtpClientController {
                 ? this.ftpClient.list(this.wirePath(safePath)).then(files => this.toSftpFileInfo(files))
                 : this.client.list(this.wirePath(safePath));
 
-            const files = await Promise.race([
-                listPromise,
-                new Promise<SFTPClient.FileInfo[]>((_, reject) => setTimeout(() => {
-                    reject(new Error('Directory listing timed out'));
-                }, 10000))
-            ]);
+            const files = await this.withTransportTimeout(listPromise, 'Directory listing timed out');
 
             this.updateStatusConnection();
             return files as SFTPClient.FileInfo[];
@@ -580,7 +613,7 @@ export default class FtpClientController {
                 ? (this.ftpClient.trackProgress(() => {
                     resetUploadTimeout();
                 }), this.ftpClient.uploadFrom(localPath, this.wirePath(safePath)))
-                : this.client.put(localPath, this.wirePath(safePath));
+                : this.uploadSftpFile(localPath, this.wirePath(safePath), () => resetUploadTimeout());
             const cancellationPromise = token
                 ? new Promise<never>((_, reject) => {
                     uploadCancellationSubscription = token.onCancellationRequested(() => reject(new Error('Upload cancelled')));
@@ -674,12 +707,9 @@ export default class FtpClientController {
                                 this.ftpClient.trackProgress();
                             }
                         } else {
-                            await this.client.put(localPath, this.wirePath(remotePath), {
-                                writeStreamOptions: {
-                                    flags: 'w',
-                                    encoding: 'utf8',
-                                    mode: 0o666,
-                                }
+                            await this.uploadSftpFile(localPath, this.wirePath(remotePath), (transferred, total) => {
+                                resetUploadTimeout();
+                                progress.report({ increment: total ? (transferred / total) * 100 : 0, message: `${Math.round(transferred / 1024)} KB` });
                             });
                         }
                     };

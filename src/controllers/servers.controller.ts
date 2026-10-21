@@ -23,12 +23,18 @@ export default class ServersController {
                         title: LocalizationManager.getInstance().t('Loading Servers'),
                         cancellable: true,
                     },
-                    async (progress, token) => {
-                        token.onCancellationRequested(() => {
+                    async (_progress, token) => {
+                        const cancellationSubscription = token.onCancellationRequested(() => {
                             vscode.window.showInformationMessage(LocalizationManager.getInstance().t('Server loading cancelled'));
                         });
-                        await this.loadServers();
-                        this.showServersSelector();
+                        try {
+                            await this.loadServers();
+                            if (!token.isCancellationRequested) {
+                                await this.showServersSelector();
+                            }
+                        } finally {
+                            cancellationSubscription.dispose();
+                        }
                     }
                 );
             }

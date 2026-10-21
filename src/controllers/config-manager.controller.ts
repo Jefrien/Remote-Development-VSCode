@@ -325,10 +325,17 @@ export default class ConfigManager {
                 await this.context.secrets.delete(this.passphraseKey(removedId));
             }
 
-            await fs.writeFile(this.configPath, JSON.stringify(metadata, null, 2), {
-                encoding: 'utf8',
-                mode: 0o600
-            });
+            const temporaryPath = `${this.configPath}.${randomUUID()}.tmp`;
+            try {
+                await fs.writeFile(temporaryPath, JSON.stringify(metadata, null, 2), {
+                    encoding: 'utf8',
+                    mode: 0o600
+                });
+                await fs.chmod(temporaryPath, 0o600);
+                await fs.rename(temporaryPath, this.configPath);
+            } finally {
+                await fs.unlink(temporaryPath).catch(() => undefined);
+            }
             await fs.chmod(this.configPath, 0o600);
         } catch (error) {
             console.error('Error saving config:', error);

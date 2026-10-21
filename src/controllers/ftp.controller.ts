@@ -26,6 +26,10 @@ export function isTransientConnectionError(error: unknown, disconnected = false,
         || /(?:ECONN|EPIPE|socket|connection|timeout|timed out|closed|reset|TLS)/i.test(message);
 }
 
+function normalizeFingerprint(fingerprint: string): string {
+    return fingerprint.trim().toLowerCase().replace(/^sha256:/, '').replace(/:/g, '');
+}
+
 export default class FtpClientController {
     private static RECONNECT_THRESHOLD = 10 * 60 * 1000; // 10 minutes
     private static instance: FtpClientController;
@@ -214,8 +218,16 @@ export default class FtpClientController {
 
     private async connectSftpWithTrust(config: ServerItem): Promise<void> {
         let observedFingerprint: string | undefined;
+
+        // A rejected host-key verification leaves ssh2-sftp-client in a
+        // terminal state. Always use a fresh client for a new handshake.
+        await this.closeSftpSafely();
+        this.client = new SFTPClient();
+        this.registerEvents();
+
         const attempt = async (trustedFingerprint?: string) => {
             observedFingerprint = undefined;
+            const expected = trustedFingerprint ? normalizeFingerprint(trustedFingerprint) : undefined;
             await Promise.race([
                 this.client.connect({
                     host: config.host,
@@ -224,14 +236,15 @@ export default class FtpClientController {
                     password: config.password,
                     hostHash: 'sha256',
                     hostVerifier: (fingerprint: string) => {
-                        const received = fingerprint.trim().toLowerCase();
-                        const expected = trustedFingerprint?.trim().toLowerCase();
+                        const received = normalizeFingerprint(fingerprint);
                         observedFingerprint = received;
                         this.writeLog(`SFTP host key received; match=${Boolean(expected && received === expected)}`);
                         return Boolean(expected && received === expected);
                     },
                     readyTimeout: 10000,
-                    retries: 2,
+                    // A rejected host key should reach the trust prompt
+                    // immediately instead of retrying the handshake.
+                    retries: 0,
                 }),
                 new Promise<never>((_, reject) => setTimeout(() => reject(new Error('SFTP connection timed out')), 15000))
             ]);
@@ -267,11 +280,16 @@ export default class FtpClientController {
             if (action === 'Trust always') {
                 await ConfigManager.getInstance(this.context).saveServerFingerprint(config, observedFingerprint);
             }
-            // ssh2-sftp-client instances that rejected a host key may not be
+            // ssh2-sftp-client instances that rejected a host key are not
             // reusable for the next handshake.
             this.client = new SFTPClient();
             this.registerEvents();
-            await attempt(observedFingerprint);
+            try {
+                await attempt(observedFingerprint);
+            } catch (retryError) {
+                await this.closeSftpSafely();
+                throw retryError;
+            }
         }
     }
 

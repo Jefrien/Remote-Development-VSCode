@@ -1,82 +1,73 @@
 # Remote Development for VS Code
 
-Manage remote files from Visual Studio Code over SFTP/SSH and FTPS.
+Gestiona archivos remotos desde VS Code, Cursor y otros editores compatibles con extensiones de VS Code. Permite conectarte por SFTP o FTPS, explorar carpetas, editar archivos y subir cambios.
 
-Remote Development provides a lightweight file explorer for remote servers:
-browse directories, open files locally for editing, upload changes, create and
-rename files or folders, delete entries, and change permissions.
+## Funciones
 
-## Features
+- Conexiones SFTP/SSH y FTPS.
+- Verificación de huella del servidor SFTP.
+- Explorador remoto de archivos y carpetas.
+- Edición local de archivos remotos y subida de cambios.
+- Subida de archivos locales desde el menú contextual.
+- Crear, renombrar, eliminar y cambiar permisos.
+- Soporte para enlaces simbólicos.
+- Reconexión automática ante fallos temporales.
+- Protección de la carpeta remota configurada.
+- Contraseñas guardadas en VS Code SecretStorage.
+- Idioma en inglés o español.
 
-- SFTP/SSH connections with host-key fingerprint verification.
-- FTPS connections only; plain FTP is rejected.
-- Remote file and folder explorer inside VS Code.
-- Open remote files in the editor and upload saved changes.
-- Context-menu uploads from any local file.
-- Symlink entries are visible and file symlinks can be opened.
-- Automatic connection health checks and one retry after transport failures.
-- Remote base-directory protection and local temporary-file protection.
-- Passwords stored in VS Code SecretStorage instead of the JSON file.
-- English and Spanish translations, including a manually selectable extension language.
+## Requisitos
 
-## Requirements
+- VS Code `1.94.0` o posterior, Cursor u otro editor compatible.
+- Un servidor SFTP o FTPS accesible.
+- Credenciales y puerto del servidor.
 
-- Visual Studio Code `1.94.0` or newer.
-- Node.js 24 LTS for development and packaging.
-- A reachable SFTP or FTPS server.
+El FTP sin cifrado se rechaza. Para FTP seguro usa FTPS con `"ftpSecure": true`.
 
-## Install from source
+## Instalación desde un VSIX
 
-```bash
-git clone https://github.com/Jefrien/Remote-Development-VSCode.git
-cd Remote-Development-VSCode
-npm ci
-npm run compile
-npm run lint
-```
+1. Abre la paleta con `Ctrl+Shift+P` en Windows/Linux o `Cmd+Shift+P` en macOS.
+2. Ejecuta **Extensions: Install from VSIX...**.
+3. Selecciona el archivo `.vsix`.
+4. Recarga la ventana cuando el editor lo solicite.
 
-Open the directory in VS Code and press `F5` to launch an Extension Development
-Host.
+## Configuración rápida
 
-## Run tests
+1. Abre la vista **Remote Development** desde la barra lateral.
+2. Pulsa el botón de configuración o ejecuta **Remote Development: Config**.
+3. Edita el JSON y guárdalo.
+4. Ejecuta **Remote Development: Choose Connection** y selecciona un servidor.
 
-```bash
-npm test
-```
+La configuración se puede editar como texto JSON. Puedes escribir la contraseña en el editor; al guardar, la extensión la mueve a VS Code SecretStorage y deja un marcador en el JSON persistente.
 
-The first run downloads the pinned VS Code test runtime defined in
-`.vscode-test.mjs`. It is generated locally under `.vscode-test/` and must not
-be committed. If the download fails, check DNS, proxy, VPN, or firewall access
-to `update.code.visualstudio.com`.
+### Ejemplo SFTP
 
-## Configuration
-
-Run **Remote Development: Config** from the Remote Development view. The
-extension opens an editable JSON document. Passwords are visible while that
-temporary editor is open, but are stored in VS Code SecretStorage when saved;
-the persisted JSON contains a SecretStorage placeholder instead of the
-password.
-
-Example:
-
-```json
+~~~
 {
   "servers": [
     {
-      "name": "My SFTP server",
+      "name": "Mi servidor SFTP",
       "host": "example.com",
       "username": "deploy",
-      "password": "your-password",
+      "password": "mi-contraseña",
       "port": 22,
       "path": "/",
-      "type": "sftp",
-      "hostFingerprint": "64-character SHA-256 hex fingerprint"
-    },
+      "type": "sftp"
+    }
+  ]
+}
+~~~
+
+### Ejemplo FTPS
+
+~~~
+{
+  "servers": [
     {
-      "name": "My FTPS server",
+      "name": "Mi servidor FTPS",
       "host": "ftp.example.com",
       "username": "deploy",
-      "password": "your-password",
+      "password": "mi-contraseña",
       "port": 21,
       "path": "/public_html",
       "type": "ftp",
@@ -84,72 +75,159 @@ Example:
     }
   ]
 }
-```
+~~~
 
-For SFTP, the first connection shows the received host-key fingerprint. Choose
-**Trust once** or **Trust always**. A changed fingerprint is rejected until the
-user explicitly reviews it. FTPS certificate validation remains enabled.
+### Campos
 
-## Language selection
+| Campo | Obligatorio | Descripción |
+| --- | --- | --- |
+| `name` | Sí | Nombre mostrado en la lista. |
+| `host` | Sí | Dominio o IP del servidor. |
+| `username` | Sí | Usuario de conexión. |
+| `password` | No | Contraseña; se guarda en SecretStorage al guardar. |
+| `port` | Sí | Normalmente `22` para SFTP o `21` para FTPS. |
+| `path` | Sí | Carpeta remota base. Usa `/` para la raíz. |
+| `type` | No | `sftp` o `ftp`; por defecto es SFTP. |
+| `ftpSecure` | FTPS | Debe ser `true` para una conexión segura. |
+| `hostFingerprint` | No | Huella SFTP aprobada; normalmente se guarda automáticamente. |
 
-The extension initially follows the VS Code locale when it is English or
-Spanish. Use **Remote Development: Change Language** to override it. The
-selection is stored in VS Code global extension state. Reload the VS Code
-window after changing it so contributed command and view titles refresh.
+En la primera conexión SFTP aparecerá la huella del servidor:
 
-Translation files are in [`l10n/`](l10n/), and the workflow is documented in
-[`I18N.md`](I18N.md).
+- **Allow once / Trust once**: acepta solo esta conexión.
+- **Allow always / Trust always**: guarda la huella.
+- **Cancel / Deny**: rechaza la conexión.
 
-## Common commands
+Si la huella cambia, la conexión se rechaza. Verifícala con el administrador del servidor antes de aceptarla.
 
-- **Remote Development: Choose Connection** — load and connect to a server.
-- **Remote Development: Config** — edit server configuration.
-- **Remote Development: Change Language** — select English or Spanish.
-- **Remote Development: Save and Upload** — upload the currently open remote file.
+## Flujo de trabajo
 
-Most file operations are available from the remote explorer context menu.
+1. Conéctate con **Remote Development: Choose Connection**.
+2. Expande las carpetas en **Servers**.
+3. Haz clic en un archivo para descargarlo y abrirlo.
+4. Edita y guarda el archivo normalmente.
+5. Ejecuta **Remote Development: Save and Upload**.
 
-## Project structure
+La subida solo funciona con archivos abiertos desde el explorador remoto de la extensión. Un archivo local cualquiera no tiene una ruta remota asociada.
 
-```text
-src/extension.ts                              Extension activation
-src/controllers/config-manager.controller.ts  Config and SecretStorage
-src/controllers/localization.controller.ts    Manual language selection
-src/controllers/ftp.controller.ts             FTP/FTPS/SFTP transport
-src/controllers/explorer.controller.ts        Remote tree provider
-src/controllers/files.controller.ts           File commands
-src/controllers/directories.controller.ts     Directory commands
-src/utils/index.ts                            Path and filesystem safeguards
-l10n/                                          Runtime translations
-src/test/                                      Extension regression tests
-```
+## Guardar y subir con teclado
 
-## Contributing
+| Sistema | Atajo |
+| --- | --- |
+| Windows | `Alt+Shift+Q` |
+| Linux | `Alt+Shift+Q` |
+| macOS | `Option+Shift+Q` |
 
-Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request.
-Bug reports and feature requests should use the GitHub issue templates. For
-security-sensitive reports, follow [`SECURITY.md`](SECURITY.md) instead of
-opening a public issue.
+El comando guarda el archivo activo y sube la versión guardada. Si el atajo entra en conflicto:
 
-## Development checks
+1. Abre **File > Preferences > Keyboard Shortcuts** en Windows/Linux o **Code/Cursor > Settings > Keyboard Shortcuts** en macOS.
+2. Busca **Remote Development: Save and Upload**.
+3. Selecciona **Change Keybinding** y define otra combinación.
 
-Before submitting a PR, run:
+También puedes ejecutar el comando desde la paleta con `Ctrl+Shift+P` o `Cmd+Shift+P`.
 
-```bash
+## Comandos útiles
+
+Busca Remote Development en la paleta de comandos:
+
+| Comando | Uso |
+| --- | --- |
+| **Choose Connection** | Cargar servidores y conectar. |
+| **Config** | Abrir el JSON de configuración. |
+| **Save and Upload** | Guardar y subir el archivo remoto activo. |
+| **Change Language** | Cambiar entre English y Español. |
+| **Open Resource** | Abrir un archivo remoto seleccionado. |
+| **Open Remote Folder** | Abrir una carpeta remota. |
+
+Desde el menú contextual de **Servers** también puedes abrir, editar, subir, crear, renombrar, eliminar, copiar rutas y cambiar permisos.
+
+## Idioma
+
+La extensión sigue inicialmente el idioma de VS Code si es inglés o español. Para cambiarlo manualmente ejecuta:
+
+~~~text
+Remote Development: Change Language
+~~~
+
+Recarga la ventana para actualizar títulos, comandos y menús. La selección queda guardada.
+
+## Solución de problemas
+
+### `command not found`
+
+Instala el VSIX más reciente y ejecuta **Developer: Reload Window**. Si continúa, desinstala la versión anterior, reinicia el editor e instala nuevamente el VSIX.
+
+### `Host denied (verification failed)`
+
+La huella fue rechazada o cambió. Verifícala con el administrador del servidor antes de aceptar una nueva.
+
+### `Remote path escapes the configured base directory`
+
+El elemento está fuera de la carpeta definida en `path`. Para usar la raíz:
+
+~~~json
+"path": "/"
+~~~
+
+### La conexión o subida falla
+
+Revisa host, puerto, usuario, contraseña y protocolo. Para FTPS confirma `"ftpSecure": true`. La extensión intenta reconectar una vez ante fallos temporales; después vuelve a ejecutar **Save and Upload**.
+
+## Desarrollo
+
+Requisitos: Node.js 24 LTS y npm.
+
+~~~bash
+git clone https://github.com/Jefrien/Remote-Development-VSCode.git
+cd Remote-Development-VSCode
+npm ci
+npm run compile
+npm run lint
+~~~
+
+Presiona `F5` en VS Code para iniciar un Extension Development Host.
+
+### Pruebas
+
+~~~bash
+npm test
+~~~
+
+La primera ejecución descarga el runtime definido en `.vscode-test.mjs`. La carpeta `.vscode-test/` es local y no debe subirse al repositorio.
+
+### Crear un VSIX
+
+~~~bash
+fnm exec --using v24.14.0 npx --no-install vsce package
+~~~
+
+Antes de abrir un pull request:
+
+~~~bash
 npm run compile
 npm run lint
 npm test
 git diff --check
-```
+~~~
 
-To build a VSIX locally with Node 24:
+## Estructura
 
-```bash
-fnm exec --using v24.14.0 npx --no-install vsce package
-```
+~~~text
+src/extension.ts                              Activación
+src/controllers/config-manager.controller.ts  Configuración y SecretStorage
+src/controllers/localization.controller.ts    Idioma manual
+src/controllers/ftp.controller.ts             FTP/FTPS/SFTP
+src/controllers/explorer.controller.ts        Explorador remoto
+src/controllers/files.controller.ts           Archivos
+src/controllers/directories.controller.ts     Carpetas
+src/utils/index.ts                            Rutas y protecciones
+l10n/                                          Traducciones
+src/test/                                      Pruebas
+~~~
 
-## License and support
+## Contribuir
 
-This project is distributed under the license in [`LICENCE.txt`](LICENCE.txt).
-Issues and pull requests are welcome. For security issues, use the private
-reporting process described in [`SECURITY.md`](SECURITY.md).
+Lee [`CONTRIBUTING.md`](CONTRIBUTING.md) antes de abrir un pull request. Usa las plantillas de GitHub para issues y solicitudes. Para seguridad, sigue [`SECURITY.md`](SECURITY.md) en lugar de abrir un issue público.
+
+## Licencia
+
+El proyecto se distribuye bajo [`LICENCE.txt`](LICENCE.txt).

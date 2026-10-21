@@ -16,6 +16,10 @@ export default class ConfigManager {
     private static instance: ConfigManager;
     private configPath: string;
     private configDocumentUri?: string;
+    private readonly configEditorUri = vscode.Uri.parse('remote-development-config:/config.json');
+    private editorContent = new Uint8Array();
+    private readonly editorFileEvents = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
+    readonly onDidChangeFile = this.editorFileEvents.event;
     private readonly context: vscode.ExtensionContext;
 
     /**
@@ -29,6 +33,13 @@ export default class ConfigManager {
             context.globalStorageUri.fsPath,
             'remote-development-jdevs',
             'config.json'
+        );
+
+        context.subscriptions.push(
+            vscode.workspace.registerFileSystemProvider('remote-development-config', this, {
+                isCaseSensitive: true
+            }),
+            this.editorFileEvents
         );
 
         // Register command to open the config file
@@ -108,10 +119,8 @@ export default class ConfigManager {
     async openInEditor(): Promise<void> {
         try {
             const config = await this.loadConfig();
-            const document = await vscode.workspace.openTextDocument({
-                language: 'json',
-                content: JSON.stringify(config, null, 2)
-            });
+            this.editorContent = Buffer.from(JSON.stringify(config, null, 2), 'utf8');
+            const document = await vscode.workspace.openTextDocument(this.configEditorUri);
             this.configDocumentUri = document.uri.toString();
             await vscode.window.showTextDocument(document);
         } catch (error) {
@@ -255,15 +264,57 @@ export default class ConfigManager {
             servers: parsed.servers.map(server => ({ ...server, id: server.id ?? randomUUID() }))
         };
         await this.saveConfig(normalized);
-        const safeConfig = {
-            servers: normalized.servers.map(({ password: _password, ...server }) => ({
-                ...server,
-                password: '<stored in VS Code SecretStorage>'
-            }))
+        // Keep the editable document readable, including passwords, while the
+        // persisted configuration remains sanitized by saveConfig().
+        return [];
+    }
+
+    watch(_uri: vscode.Uri, _options: { recursive: boolean; excludes: string[] }): vscode.Disposable {
+        return new vscode.Disposable(() => undefined);
+    }
+
+    stat(uri: vscode.Uri): vscode.FileStat {
+        this.assertEditorUri(uri);
+        return {
+            type: vscode.FileType.File,
+            ctime: 0,
+            mtime: Date.now(),
+            size: this.editorContent.byteLength
         };
-        return [vscode.TextEdit.replace(
-            new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)),
-            JSON.stringify(safeConfig, null, 2)
-        )];
+    }
+
+    readDirectory(uri: vscode.Uri): [string, vscode.FileType][] {
+        if (uri.path === '/') {
+            return [['config.json', vscode.FileType.File]];
+        }
+        throw vscode.FileSystemError.FileNotFound(uri);
+    }
+
+    createDirectory(uri: vscode.Uri): void {
+        throw vscode.FileSystemError.NoPermissions(uri);
+    }
+
+    readFile(uri: vscode.Uri): Uint8Array {
+        this.assertEditorUri(uri);
+        return this.editorContent;
+    }
+
+    writeFile(uri: vscode.Uri, content: Uint8Array, _options: { create: boolean; overwrite: boolean }): void {
+        this.assertEditorUri(uri);
+        this.editorContent = content;
+    }
+
+    delete(uri: vscode.Uri, _options: { recursive: boolean }): void {
+        throw vscode.FileSystemError.NoPermissions(uri);
+    }
+
+    rename(oldUri: vscode.Uri, _newUri: vscode.Uri, _options: { overwrite: boolean }): void {
+        throw vscode.FileSystemError.NoPermissions(oldUri);
+    }
+
+    private assertEditorUri(uri: vscode.Uri): void {
+        if (uri.toString() !== this.configEditorUri.toString()) {
+            throw vscode.FileSystemError.FileNotFound(uri);
+        }
     }
 }

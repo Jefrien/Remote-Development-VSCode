@@ -35,10 +35,13 @@ El FTP sin cifrado se rechaza. Para FTP seguro usa FTPS con `"ftpSecure": true`.
 
 1. Abre la vista **Remote Development** desde la barra lateral.
 2. Pulsa el botón de configuración o ejecuta **Remote Development: Config**.
-3. Edita el JSON y guárdalo.
-4. Ejecuta **Remote Development: Choose Connection** y selecciona un servidor.
+3. Administra las conexiones desde la interfaz: crea, edita o elimina servidores.
+4. Usa **Open in JSON** si prefieres editar el JSON directamente.
+5. Ejecuta **Remote Development: Choose Connection** y selecciona un servidor.
 
-La configuración se puede editar como texto JSON. Puedes escribir la contraseña en el editor; al guardar, la extensión la mueve a VS Code SecretStorage y deja un marcador en el JSON persistente.
+La interfaz y el editor JSON actualizan la misma configuración interna. Puedes
+escribir la contraseña mientras editas; al guardar, la extensión la mueve a VS
+Code SecretStorage y deja un marcador en el JSON persistente.
 
 ### Ejemplo SFTP
 
@@ -132,7 +135,7 @@ Busca Remote Development en la paleta de comandos:
 | Comando | Uso |
 | --- | --- |
 | **Choose Connection** | Cargar servidores y conectar. |
-| **Config** | Abrir el JSON de configuración. |
+| **Config** | Abrir el administrador visual de conexiones. |
 | **Save and Upload** | Guardar y subir el archivo remoto activo. |
 | **Change Language** | Cambiar entre English y Español. |
 | **Open Resource** | Abrir un archivo remoto seleccionado. |

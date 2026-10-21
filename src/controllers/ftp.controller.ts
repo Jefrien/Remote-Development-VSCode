@@ -3,6 +3,7 @@ import { Client, FileInfo as FtpFileInfo, FileType } from "basic-ftp";
 import * as vscode from 'vscode';
 import { ServerItem } from '../types';
 import StatusBarController from './status-bar.controller';
+import ConfigManager from './config-manager.controller';
 import path from 'path';
 import fs from 'fs';
 import { assertRemotePath, getTempDirectory, hostStorageId, pathServerFormat } from '../utils';
@@ -137,9 +138,6 @@ export default class FtpClientController {
         if (this.connectionType === 'ftp' && config.ftpSecure !== true) {
             throw new Error('Plain FTP is disabled. Set ftpSecure to true and use FTPS.');
         }
-        if (this.connectionType === 'sftp' && !config.hostFingerprint) {
-            throw new Error('SFTP hostFingerprint is required to prevent man-in-the-middle attacks.');
-        }
 
         try {
             if (this.status === 'connected') {
@@ -157,16 +155,7 @@ export default class FtpClientController {
                     secure: true,
                 });
             } else { // sftp
-                await this.client.connect({
-                    host,
-                    port,
-                    username,
-                    password,
-                    hostHash: 'sha256',
-                    hostVerifier: (fingerprint: string) => fingerprint === config.hostFingerprint,
-                    readyTimeout: 10000,
-                    retries: 2,
-                });
+                await this.connectSftpWithTrust(config);
             }
             this.status = 'connected';
             this.connectionTime = Date.now();
@@ -176,6 +165,58 @@ export default class FtpClientController {
             throw new Error(`${this.connectionType.toUpperCase()} connection error: ${error.message}`);
         } finally {
             this.updateStatusConnection();
+        }
+    }
+
+    private async connectSftpWithTrust(config: ServerItem): Promise<void> {
+        let observedFingerprint: string | undefined;
+        const attempt = async (trustedFingerprint?: string) => {
+            observedFingerprint = undefined;
+            await this.client.connect({
+                host: config.host,
+                port: config.port,
+                username: config.username,
+                password: config.password,
+                hostHash: 'sha256',
+                hostVerifier: (fingerprint: string) => {
+                    observedFingerprint = fingerprint;
+                    return Boolean(trustedFingerprint) && fingerprint === trustedFingerprint;
+                },
+                readyTimeout: 10000,
+                retries: 2,
+            });
+        };
+
+        try {
+            await attempt(config.hostFingerprint);
+            return;
+        } catch (error: any) {
+            await this.disconnect();
+            if (!observedFingerprint) {
+                throw error;
+            }
+
+            const changed = Boolean(config.hostFingerprint);
+            const detail = changed
+                ? `The server host key changed.\n\nExpected: ${config.hostFingerprint}\nReceived: ${observedFingerprint}`
+                : `This server has not been trusted yet.\n\nFingerprint: ${observedFingerprint}`;
+            const action = await vscode.window.showWarningMessage(
+                changed ? 'SFTP host key changed' : 'Trust this SFTP server?',
+                { modal: true, detail },
+                'Trust once',
+                'Trust always',
+                'Cancel'
+            );
+
+            if (action === 'Cancel' || !action) {
+                throw new Error('SFTP host key was not trusted');
+            }
+
+            config.hostFingerprint = observedFingerprint;
+            if (action === 'Trust always') {
+                await ConfigManager.getInstance(this.context).saveServerFingerprint(config, observedFingerprint);
+            }
+            await attempt(observedFingerprint);
         }
     }
 

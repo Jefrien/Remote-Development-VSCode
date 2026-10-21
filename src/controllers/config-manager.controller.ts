@@ -184,6 +184,22 @@ export default class ConfigManager {
         }
     }
 
+    async saveServerFingerprint(server: ServerItem, fingerprint: string): Promise<void> {
+        const config = await this.loadConfig();
+        const storedServer = config.servers.find(candidate =>
+            (server.id && candidate.id === server.id)
+            || (candidate.host === server.host
+                && candidate.username === server.username
+                && candidate.port === server.port
+                && candidate.path === server.path)
+        );
+        if (!storedServer) {
+            throw new Error('Server configuration was not found');
+        }
+        storedServer.hostFingerprint = fingerprint;
+        await this.saveConfig(config);
+    }
+
     private passwordKey(id: string): string {
         return `remote-development.password.${id}`;
     }
@@ -223,7 +239,7 @@ export default class ConfigManager {
             if (candidate.ftpSecure !== undefined && typeof candidate.ftpSecure !== 'boolean') {
                 throw new Error(`Invalid FTP security setting at index ${index}`);
             }
-            if (candidate.hostFingerprint !== undefined && (typeof candidate.hostFingerprint !== 'string' || !/^[a-f0-9]{64}$/i.test(candidate.hostFingerprint))) {
+            if (candidate.hostFingerprint !== undefined && (typeof candidate.hostFingerprint !== 'string' || (candidate.hostFingerprint !== '' && !/^[a-f0-9]{64}$/i.test(candidate.hostFingerprint)))) {
                 throw new Error(`Invalid host fingerprint at index ${index}`);
             }
             return { ...candidate };

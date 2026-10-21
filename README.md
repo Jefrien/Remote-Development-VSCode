@@ -59,3 +59,9 @@ Legacy configurations containing plaintext passwords are migrated automatically 
         }
     ]
 }
+```
+
+For SFTP, if `hostFingerprint` is empty or the server key changes, the extension shows
+the received fingerprint and asks whether to trust it once or always. “Trust always”
+stores the fingerprint in the configuration; a changed fingerprint is never accepted
+silently. FTPS certificate validation remains enabled and plain FTP is rejected.

@@ -255,9 +255,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 1px s
 .sidebar { border-right: 1px solid var(--vscode-panel-border); padding-right: 20px; }
 .side-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; color: var(--vscode-descriptionForeground); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
 .count { min-width: 22px; padding: 2px 6px; border-radius: 10px; color: var(--vscode-badge-foreground); background: var(--vscode-badge-background); text-align: center; font-size: 11px; }
-.list-tools { display: flex; gap: 6px; margin-bottom: 10px; }
-.list-tools input, .list-tools select { min-width: 0; padding: 6px 8px; }
-.list-tools input { flex: 1; }
+.list-tools { display: grid; grid-template-columns: minmax(0, 1fr) 82px; gap: 6px; margin-bottom: 10px; }
+.list-tools input, .list-tools select { width: 100%; min-width: 0; padding: 6px 8px; }
 .server-list { display: flex; flex-direction: column; gap: 5px; }
 .server-item { display: block; width: 100%; padding: 11px 12px; border: 1px solid transparent; border-radius: 5px; color: var(--vscode-foreground); background: transparent; text-align: left; }
 .server-item:hover { background: var(--vscode-list-hoverBackground); }
